@@ -1,0 +1,67 @@
+---
+title: "International cooperation"
+author: "L.-Y. M."
+date: "2024-02-14"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library("tidyverse")
+library("scattermore")
+```
+
+## R Markdown
+
+Reference: Lin, Y., Frey, C. B., & Wu, L. (2023). Remote collaboration fuses fewer breakthrough ideas. Nature, 623(7989), 987–991. <https://doi.org/10.1038/s41586-023-06767-1>
+
+The raw date used in this project can be found in <https://lyl010.github.io/>.
+
+```{r data input}
+dataset1 <- read_csv("raw data/Paperid_Remoteness_Authors_Teamroles.csv")
+city_latlong <- read_csv("raw data/ScienceCityLatLong.csv")
+paperid_year <- read_table("raw data/Paperid_Year_Discipline_Teamsize_Distance_Dscore.txt", col_names = c("Paperid","Year","Discipline","Teamsize","Distance","Dscore"))
+dataset2 <- read_delim("raw data/ScienceDisruptionCityEdges.txt", col_names = 
+                         c("Connection","color","main_city","D_score1","D_score2"), delim = "\t")
+dataset5 <- read_csv("raw data/Paperid_Remoteness_Authors_Teamroles.csv")
+```
+
+## Prepare data
+
+You can also embed plots, for example:
+
+```{r data reshaping}
+connection_data <- dataset2 %>% 
+  unite(D_score,c("D_score1","D_score2"),sep = ",")
+
+```
+
+```{r top1%}
+top_paper <- paperid_year %>% 
+  filter(Dscore != "nan") %>% 
+  filter(Dscore > 0.2)
+
+top_paper$Dscore <- as.numeric(top_paper$Dscore)
+
+paperid_year %>% 
+  filter(Dscore != "nan") %>% 
+  filter(Dscore > 200) %>% 
+  ggplot(aes(x = Distance, y = Dscore)) + geom_point()
+
+ds_hist <- ggplot(top_paper, aes(x = Dscore))
+ds_hist + geom_histogram()
+
+di_hist <- ggplot(top_paper, aes(x = Distance))
+di_hist + geom_histogram()
+
+di_n0_hist <- ggplot(top_paper %>% filter(Distance > 0), aes(x = Distance))
+di_n0_hist + geom_histogram()
+
+di_morethan10_hist <- ggplot(top_paper %>% filter(Distance > 10), aes(x = Distance))
+di_morethan10_hist + geom_histogram()
+
+d_d <- ggplot(top_paper, aes(x = Distance, y = Dscore)) +
+  geom_scattermore() + # otherwise, it can take forever
+  scale_y_continuous(n.breaks = 5)
+
+d_d_log <- 
+```
