@@ -7,6 +7,7 @@ output: html_document
 
 ```{r setup, include=FALSE}
 library("tidyverse")
+library("ggExtra")
 library("scattermore")
 ```
 
@@ -19,7 +20,7 @@ The raw date used in this project can be found in <https://lyl010.github.io/>.
 ```{r data input}
 dataset1 <- read_csv("raw data/Paperid_Remoteness_Authors_Teamroles.csv")
 city_latlong <- read_csv("raw data/ScienceCityLatLong.csv")
-paperid_year <- read_table("raw data/Paperid_Year_Discipline_Teamsize_Distance_Dscore.txt", col_names = c("Paperid","Year","Discipline","Teamsize","Distance","Dscore"))
+paperid_year <- read_delim("raw data/Paperid_Year_Discipline_Teamsize_Distance_Dscore.txt", col_names = c("Paperid","Year","Discipline","Teamsize","Distance","Dscore"), delim = "\t")
 dataset2 <- read_delim("raw data/ScienceDisruptionCityEdges.txt", col_names = 
                          c("Connection","color","main_city","D_score1","D_score2"), delim = "\t")
 dataset5 <- read_csv("raw data/Paperid_Remoteness_Authors_Teamroles.csv")
@@ -33,22 +34,36 @@ You can also embed plots, for example:
 connection_data <- dataset2 %>% 
   unite(D_score,c("D_score1","D_score2"),sep = ",")
 
+science_and_engineering = c("geology","medicine","mathematics","physics","materials science",
+                            "biology","chemistry","engineering","computer science","geography",
+                            "environmental science")
+social_sciences <- c("political science","business","economics","psychology","sociology")
+art_and_humanity <- c("history","art","philosophy")
+
+df <- bind_rows(
+  data.frame(Discipline = science_and_engineering, fields = "science_and_engineering"),
+  data.frame(Discipline = social_sciences, fields = "social_sciences"),
+  data.frame(Discipline = art_and_humanity, fields = "art_and_humanity")
+)
+
+paperid_year <- left_join(paperid_year, df, by = "Discipline")
+
+  [1,2,4,5,6,7,9,10,14,15,18] ## 
+SS = [0,8,11,16,17]## 
+AH = [3,12,13]## art and humanity
 ```
 
 ```{r top1%}
+
 top_paper <- paperid_year %>% 
-  filter(Dscore != "nan") %>% 
   filter(Dscore > 0.2)
 
-top_paper$Dscore <- as.numeric(top_paper$Dscore)
-
-paperid_year %>% 
-  filter(Dscore != "nan") %>% 
-  filter(Dscore > 200) %>% 
-  ggplot(aes(x = Distance, y = Dscore)) + geom_point()
 
 ds_hist <- ggplot(top_paper, aes(x = Dscore))
 ds_hist + geom_histogram()
+
+ds_n0_hist <- ggplot(top_paper %>% filter(Distance > 0), aes(x = Dscore))
+ds_n0_hist + geom_histogram()
 
 di_hist <- ggplot(top_paper, aes(x = Distance))
 di_hist + geom_histogram()
@@ -56,12 +71,24 @@ di_hist + geom_histogram()
 di_n0_hist <- ggplot(top_paper %>% filter(Distance > 0), aes(x = Distance))
 di_n0_hist + geom_histogram()
 
-di_morethan10_hist <- ggplot(top_paper %>% filter(Distance > 10), aes(x = Distance))
-di_morethan10_hist + geom_histogram()
+d_d <- ggplot(top_paper, aes(x = Distance, y = Dscore, color = Year)) +
+  geom_point(alpha = 0.1)
+#  geom_scattermore() # otherwise, it can take forever
+ggMarginal(d_d, type = "histogram")
 
-d_d <- ggplot(top_paper, aes(x = Distance, y = Dscore)) +
-  geom_scattermore() + # otherwise, it can take forever
-  scale_y_continuous(n.breaks = 5)
+d_d_n0 <- ggplot(top_paper %>% filter(Distance > 0), aes(x = Distance, y = Dscore, color = Year, shape = fields)) +
+  geom_point(alpha = 0.1)
+#  geom_scattermore() # otherwise, it can take forever
+ggMarginal(d_d_n0, type = "histogram")
 
-d_d_log <- 
+d_d_n0_log <- d_d_n0 + scale_x_continuous(trans = 'log10') + # Log scale for x-axis
+  scale_y_continuous(trans = 'log10') # Log scale for y-axis
+ggMarginal(d_d_n0_log, type = "histogram")
 ```
+```{r distribution of Dscore in local}
+Locol_data <- paperid_year %>% 
+  filter(Distance == 0)
+ds_hist_l <- ggplot(Locol_data, aes(x = Dscore))
+ds_hist_l + geom_density()
+```
+That is a Laplace distribution
