@@ -9,6 +9,7 @@ output: html_document
 library("tidyverse")
 library("ggExtra")
 library("scattermore")
+library("cowplot")
 ```
 
 ## R Markdown
@@ -47,10 +48,6 @@ df <- bind_rows(
 )
 
 paperid_year <- left_join(paperid_year, df, by = "Discipline")
-
-  [1,2,4,5,6,7,9,10,14,15,18] ## 
-SS = [0,8,11,16,17]## 
-AH = [3,12,13]## art and humanity
 ```
 
 ```{r top1%}
@@ -77,18 +74,60 @@ d_d <- ggplot(top_paper, aes(x = Distance, y = Dscore, color = Year)) +
 ggMarginal(d_d, type = "histogram")
 
 d_d_n0 <- ggplot(top_paper %>% filter(Distance > 0), aes(x = Distance, y = Dscore, color = Year, shape = fields)) +
-  geom_point(alpha = 0.1)
-#  geom_scattermore() # otherwise, it can take forever
+  geom_point(alpha = 0.1) + theme_cowplot()
 ggMarginal(d_d_n0, type = "histogram")
+
+frequency_Dscore <- top_paper %>% 
+  group_by(Dscore) %>% 
+  summarise(n = n()) %>% 
+  arrange(desc(n))
+
+# filter out the few cited papers (extremely frequent Dscore)
+ex_lc <- left_join(top_paper, frequency_Dscore, by = "Dscore") %>% 
+  filter(n < 1000) # that is an arbitrary threshold
+
+d_d_n0_without_few_cited <- ggplot(ex_lc %>% filter(Distance > 0), 
+                                   aes(x = Distance, y = Dscore, color = Year)) +
+  geom_point(alpha = 0.1) + theme_cowplot() +
+  theme(legend.position = "left")
+ggMarginal(d_d_n0_without_few_cited, type = "histogram")
+
+```
+
+```{r log scale}
 
 d_d_n0_log <- d_d_n0 + scale_x_continuous(trans = 'log10') + # Log scale for x-axis
   scale_y_continuous(trans = 'log10') # Log scale for y-axis
 ggMarginal(d_d_n0_log, type = "histogram")
 ```
+
 ```{r distribution of Dscore in local}
 Locol_data <- paperid_year %>% 
   filter(Distance == 0)
 ds_hist_l <- ggplot(Locol_data, aes(x = Dscore))
 ds_hist_l + geom_density()
 ```
+
+The resason why distance is extremly right-skewed might be that those papers are demestic collaboration. It is impossible to investigate the affect of demestic / international collaboration on the Dscore due to the data lack of that information. However, we can use distance as a proxy of demestic / international collaboration. 
+According SJR, Germany is top 4 country which published most paper and has a medium territory area, that is 357,021 km2. Let's assume that it is a circle, then the radius is 337 km. We can use this value as a threshold to distinguish demestic and international collaboration.
+
+
+```{r data of demestic collabo}
+d_d_deme <- ggplot(top_paper %>% filter(Distance < 337), aes(x = Distance, y = Dscore, color = Year, shape = fields)) +
+  geom_point(alpha = 0.1) + theme_cowplot()
+ggMarginal(d_d_deme, type = "histogram")
+
+d_d_deme_n0 <- ggplot(top_paper %>% filter(Distance < 337) %>% filter(Distance > 0), 
+                      aes(x = Distance, y = Dscore, color = Year, shape = fields)) +
+  geom_point(alpha = 0.1) + theme_cowplot()
+ggMarginal(d_d_deme_n0, type = "histogram")
+
+```
+
+```{r data of international collaboration}
+d_d_inte <- ggplot(top_paper %>% filter(Distance > 700), aes(x = Distance, y = Dscore, color = Year, shape = fields)) +
+  geom_point(alpha = 0.1) + theme_cowplot()
+ggMarginal(d_d_inte, type = "histogram")
+```
+
 That is a Laplace distribution
