@@ -2,7 +2,9 @@
 title: "International cooperation"
 author: "L.-Y. M."
 date: "2024-02-14"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -16,12 +18,13 @@ library("cowplot")
 
 Reference: Lin, Y., Frey, C. B., & Wu, L. (2023). Remote collaboration fuses fewer breakthrough ideas. Nature, 623(7989), 987–991. <https://doi.org/10.1038/s41586-023-06767-1>
 
-The raw date used in this project can be found in <https://lyl010.github.io/>.
+The raw date used in this project can be found in [here](https://www.dropbox.com/scl/fi/16zx8y4he5l20iaahf3m8/RemoteTeam_DataForMainFigrues.zip?rlkey=c59tog9qecn61fvuzo9o0aczu&e=2&dl=0). Or using the provided link in the paper which is <https://lyl010.github.io>. You need click "Code & Data" and then click "Data" to navigate the data page. Please download the data, which is a file named "raw data.zip", and unzip it in the same directory as this file.
 
-```{r data input}
+```{r data input, echo = FALSE}
 dataset1 <- read_csv("raw data/Paperid_Remoteness_Authors_Teamroles.csv")
 city_latlong <- read_csv("raw data/ScienceCityLatLong.csv")
-paperid_year <- read_delim("raw data/Paperid_Year_Discipline_Teamsize_Distance_Dscore.txt", col_names = c("Paperid","Year","Discipline","Teamsize","Distance","Dscore"), delim = "\t")
+paperid_year <- read_delim("raw data/Paperid_Year_Discipline_Teamsize_Distance_Dscore.txt", col_names =
+                             c("Paperid","Year","Discipline","Teamsize","Distance","Dscore"), delim = "\t")
 dataset2 <- read_delim("raw data/ScienceDisruptionCityEdges.txt", col_names = 
                          c("Connection","color","main_city","D_score1","D_score2"), delim = "\t")
 dataset5 <- read_csv("raw data/Paperid_Remoteness_Authors_Teamroles.csv")
@@ -35,11 +38,13 @@ You can also embed plots, for example:
 connection_data <- dataset2 %>% 
   unite(D_score,c("D_score1","D_score2"),sep = ",")
 
+# we use the same way to classify the discipline as the original paper
 science_and_engineering = c("geology","medicine","mathematics","physics","materials science",
                             "biology","chemistry","engineering","computer science","geography",
                             "environmental science")
 social_sciences <- c("political science","business","economics","psychology","sociology")
 art_and_humanity <- c("history","art","philosophy")
+# the definition above can be found in the code of the original paper
 
 df <- bind_rows(
   data.frame(Discipline = science_and_engineering, fields = "science_and_engineering"),
@@ -50,78 +55,92 @@ df <- bind_rows(
 paperid_year <- left_join(paperid_year, df, by = "Discipline")
 ```
 
-```{r top1%}
-
+```{r top1 percent}
 top_paper <- paperid_year %>% 
   filter(Dscore > 0.2)
-
-
+# ds: Dscore; di: Distance; hist: histogram
 ds_hist <- ggplot(top_paper, aes(x = Dscore))
 ds_hist + geom_histogram()
 
-ds_n0_hist <- ggplot(top_paper %>% filter(Distance > 0), aes(x = Dscore))
+# n0: no 0 (distance)
+ds_n0_hist <- top_paper %>% 
+  filter(Distance > 0) %>%
+  ggplot(aes(x = Dscore))
 ds_n0_hist + geom_histogram()
 
 di_hist <- ggplot(top_paper, aes(x = Distance))
 di_hist + geom_histogram()
 
-di_n0_hist <- ggplot(top_paper %>% filter(Distance > 0), aes(x = Distance))
+di_n0_hist <- top_paper %>% 
+  filter(Distance > 0) %>%
+  ggplot(aes(x = Distance))
 di_n0_hist + geom_histogram()
 
+# d_d: distance vs Dscore
 d_d <- ggplot(top_paper, aes(x = Distance, y = Dscore, color = Year)) +
   geom_point(alpha = 0.1)
-#  geom_scattermore() # otherwise, it can take forever
 ggMarginal(d_d, type = "histogram")
 
 d_d_n0 <- ggplot(top_paper %>% filter(Distance > 0), aes(x = Distance, y = Dscore, color = Year, shape = fields)) +
   geom_point(alpha = 0.1) + theme_cowplot()
 ggMarginal(d_d_n0, type = "histogram")
+```
 
+It is obvious that there are several value of Dscore are extremely frequent. It is probably due to the few cited papers. Let's filter out those papers and replot the graph.
+
+```{r frequency of Dscore}
+# calculate the frequency of each Dscore value
 frequency_Dscore <- top_paper %>% 
   group_by(Dscore) %>% 
   summarise(n = n()) %>% 
   arrange(desc(n))
 
 # filter out the few cited papers (extremely frequent Dscore)
-ex_lc <- left_join(top_paper, frequency_Dscore, by = "Dscore") %>% 
+# ex_lc: exclude the few cited papers
+ex_fc <- left_join(top_paper, frequency_Dscore, by = "Dscore") %>% 
   filter(n < 1000) # that is an arbitrary threshold
 
-d_d_n0_without_few_cited <- ggplot(ex_lc %>% filter(Distance > 0), 
-                                   aes(x = Distance, y = Dscore, color = Year)) +
-  geom_point(alpha = 0.1) + theme_cowplot() +
-  theme(legend.position = "left")
-ggMarginal(d_d_n0_without_few_cited, type = "histogram")
-
+d_d_n0_ex_fc <- ex_lc %>% 
+  filter(Distance > 0) %>%
+  ggplot(aes(x = Distance, y = Dscore, color = Year)) + 
+  geom_point(alpha = 0.1) + theme_cowplot() + theme(legend.position = "left")
+ggMarginal(d_d_n0_ex_fc, type = "histogram")
 ```
 
 ```{r log scale}
-
 d_d_n0_log <- d_d_n0 + scale_x_continuous(trans = 'log10') + # Log scale for x-axis
   scale_y_continuous(trans = 'log10') # Log scale for y-axis
 ggMarginal(d_d_n0_log, type = "histogram")
 ```
 
+Now we focus on the data of local collaboration, that is the distance is 0.
+
 ```{r distribution of Dscore in local}
-Locol_data <- paperid_year %>% 
-  filter(Distance == 0)
-ds_hist_l <- ggplot(Locol_data, aes(x = Dscore))
-ds_hist_l + geom_density()
+# l: local
+ds_hist_l_ex_fc <- ex_fc %>% 
+  filter(Distance == 0) %>%
+  ggplot(aes(x = Dscore))
+ds_hist_l_ex_fc + geom_histogram()
 ```
 
-The resason why distance is extremly right-skewed might be that those papers are demestic collaboration. It is impossible to investigate the affect of demestic / international collaboration on the Dscore due to the data lack of that information. However, we can use distance as a proxy of demestic / international collaboration. 
-According SJR, Germany is top 4 country which published most paper and has a medium territory area, that is 357,021 km2. Let's assume that it is a circle, then the radius is 337 km. We can use this value as a threshold to distinguish demestic and international collaboration.
-
+The resason why distance is extremly right-skewed might be that those papers are demestic collaboration. It is impossible to investigate the affect of demestic / international collaboration on the Dscore due to the data lack of that information. However, we can use distance as a proxy of demestic / international collaboration. According SJR, Germany is top 4 country which published most paper and has a medium territory area, that is 357,021 km2. Let's assume that it is a circle, then the radius is 337 km. We can use this value as a threshold to distinguish demestic and international collaboration.
 
 ```{r data of demestic collabo}
-d_d_deme <- ggplot(top_paper %>% filter(Distance < 337), aes(x = Distance, y = Dscore, color = Year, shape = fields)) +
-  geom_point(alpha = 0.1) + theme_cowplot()
-ggMarginal(d_d_deme, type = "histogram")
+# deme: demestic
+d_d_deme_ex_fc <- ex_fc %>%
+  filter(Distance < 337) %>%
+  ggplot(aes(x = Distance, y = Dscore, color = Year)) +
+  geom_point(alpha = 0.1) + theme_cowplot() +
+  theme(legend.position = "left")
+ggMarginal(d_d_deme_ex_fc, type = "histogram")
 
-d_d_deme_n0 <- ggplot(top_paper %>% filter(Distance < 337) %>% filter(Distance > 0), 
-                      aes(x = Distance, y = Dscore, color = Year, shape = fields)) +
-  geom_point(alpha = 0.1) + theme_cowplot()
-ggMarginal(d_d_deme_n0, type = "histogram")
-
+d_d_deme_n0_ex_fc <- ex_fc %>%
+  filter(Distance < 337) %>%
+  filter(Distance > 0) %>%
+  ggplot(aes(x = Distance, y = Dscore, color = Year)) +
+  geom_point(alpha = 0.1) + 
+  theme_cowplot() + theme(legend.position = "left")
+ggMarginal(d_d_deme_n0_ex_fc, type = "histogram")
 ```
 
 ```{r data of international collaboration}
@@ -129,5 +148,52 @@ d_d_inte <- ggplot(top_paper %>% filter(Distance > 700), aes(x = Distance, y = D
   geom_point(alpha = 0.1) + theme_cowplot()
 ggMarginal(d_d_inte, type = "histogram")
 ```
+The data of international collaboration is also right-skewed. It is probably due to the convenience of international collaboration in the Europe. Let's consider the data of intercontinental collaboration in the next step. In top 10 countries which published most papers, the most close countries pair (intercontinental) are Australia and Japan. The distance between them is 6,766 km. Let's assume that it is a threshold to distinguish intercontinental collaboration.
 
-That is a Laplace distribution
+```{r data of intercontinental collaboration}
+d_d_interconti_ex_fc <- ex_fc %>%
+  filter(Distance > 6766) %>%
+  ggplot(aes(x = Distance, y = Dscore, color = Year)) +
+  geom_point(alpha = 0.1) + theme_cowplot() +
+  theme(legend.position = "left")
+ggMarginal(d_d_interconti_ex_fc, type = "histogram")
+```
+
+For the most papers, which Dscore concentrated in the range of -0.2 to 0.2.
+
+```{r data of 99 percent}
+most_paper <- paperid_year %>% 
+  filter(Dscore < 0.2) %>%
+  filter(Dscore > -0.2)
+# ds: Dscore; di: Distance; hist: histogram
+ds_hist_most <- ggplot(most_paper, aes(x = Dscore))
+ds_hist_most + geom_histogram()
+
+# n0: no 0 (distance)
+ds_n0_hist_most <- most_paper %>% 
+  filter(Distance > 0) %>%
+  ggplot(aes(x = Dscore))
+ds_n0_hist_most + geom_histogram()
+
+di_hist_most <- ggplot(most_paper, aes(x = Distance))
+di_hist_most + geom_histogram()
+
+di_n0_hist_most <- most_paper %>% 
+  filter(Distance > 0) %>%
+  ggplot(aes(x = Distance))
+di_n0_hist_most + geom_histogram()
+
+# d_d: distance vs Dscore
+d_d_most <- ggplot(most_paper, aes(x = Distance, y = Dscore, color = Year)) +
+  geom_scattermore(alpha = 0.1) # using scattermore for speed; otherwise, it will take forever
+d_d_most + theme_cowplot()
+ggMarginal(d_d_most, type = "histogram")
+```
+Let's see all the data in one graph.
+
+```{r all data}
+d_d_all <- ggplot(paperid_year, aes(x = Distance, y = Dscore, color = Year)) +
+  geom_scattermore(alpha = 0.1) + theme_cowplot()
+d_d_all
+ggMarginal(d_d_all, type = "histogram")
+```
