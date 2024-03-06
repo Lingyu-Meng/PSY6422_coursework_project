@@ -193,7 +193,28 @@ Let's see all the data in one graph.
 
 ```{r all data}
 d_d_all <- ggplot(paperid_year, aes(x = Distance, y = Dscore, color = Year)) +
-  geom_scattermore(alpha = 0.1) + theme_cowplot()
+  geom_scattermore(alpha = 0.05) + theme_cowplot()
 d_d_all
-ggMarginal(d_d_all, type = "histogram")
+# ggMarginal(d_d_all, type = "histogram")
+
+d_d_all_SE <- paperid_year %>%
+  filter(fields == "science_and_engineering") %>%
+  ggplot(aes(x = Distance, y = Dscore, color = Year)) +
+  geom_scattermore(alpha = 0.05) + theme_cowplot() +
+  scale_color_gradient(low="black", high="#619CFF")
+d_d_all_SE
+
+d_d_all_SS <- paperid_year %>%
+  filter(fields == "social_sciences") %>%
+  ggplot(aes(x = Distance, y = Dscore, color = Year)) +
+  geom_scattermore(alpha = 0.05) + theme_cowplot() +
+  scale_color_gradient(low="black", high="#00BA38")
+d_d_all_SS
+
+d_d_all_AH <- paperid_year %>%
+  filter(fields == "art_and_humanity") %>%
+  ggplot(aes(x = Distance, y = Dscore, color = Year)) +
+  geom_scattermore(alpha = 0.05) + theme_cowplot() +
+  scale_color_gradient(low="black", high="#F8766D")
+d_d_all_AH
 ```
