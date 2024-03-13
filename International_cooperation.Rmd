@@ -12,6 +12,7 @@ library("tidyverse")
 library("ggExtra")
 library("scattermore")
 library("cowplot")
+library("VGAM")
 ```
 
 ## R Markdown
@@ -201,20 +202,84 @@ d_d_all_SE <- paperid_year %>%
   filter(fields == "science_and_engineering") %>%
   ggplot(aes(x = Distance, y = Dscore, color = Year)) +
   geom_scattermore(alpha = 0.05) + theme_cowplot() +
-  scale_color_gradient(low="black", high="#619CFF")
+  scale_color_gradient(low="black", high="#619CFF") +
+  title("Science and Engineering")
 d_d_all_SE
 
 d_d_all_SS <- paperid_year %>%
   filter(fields == "social_sciences") %>%
   ggplot(aes(x = Distance, y = Dscore, color = Year)) +
   geom_scattermore(alpha = 0.05) + theme_cowplot() +
-  scale_color_gradient(low="black", high="#00BA38")
+  scale_color_gradient(low="black", high="#00BA38") +
+  title("Social Sciences")
 d_d_all_SS
 
 d_d_all_AH <- paperid_year %>%
   filter(fields == "art_and_humanity") %>%
   ggplot(aes(x = Distance, y = Dscore, color = Year)) +
   geom_scattermore(alpha = 0.05) + theme_cowplot() +
-  scale_color_gradient(low="black", high="#F8766D")
+  scale_color_gradient(low="black", high="#F8766D") +
+  title("Art and Humanity")
 d_d_all_AH
+
+```
+One potential explanation for the distribution of the data is the file-drawer problem. The file-drawer problem is a problem in meta-analysis in which studies with null results are less likely to be published than studies with significant results. It is possible that the data is biased because the less breakthrough results are less likely to be published. Let's see the distribution of the data by categories.
+```{r analysis by categories}
+breaks_distacne <- c(-1, 5000, 10000, 15000, 20000)
+breaks_dscore <- c(-1, -0.5, 0, 0.5, 1)
+data_classified <- paperid_year %>%
+  mutate(Distance = cut(Distance, breaks = breaks_distacne, labels = c("0-5000", "5000-10000", "10000-15000", "15000-20000")),
+         Dscore = cut(Dscore, breaks = breaks_dscore, labels = c("(-1, -0.5]", "(-0.5, 0]", "(0, 0.5]", "(0.5, 1]")))
+table(data_classified$Distance, data_classified$Dscore) %>% 
+prop.table(margin = 1)
+d_d_all_classified <- ggplot(data_classified, aes(x = Distance, y = Dscore, color = Year)) +
+```
+Most papers are located in the range of 0 to 1000 km. If we weithed each data point by the number of papers in the same distance, we can see the distribution of the data more clearly.
+
+```{r weighted data}
+frequency_Distance_all <- paperid_year %>%
+  group_by(Distance) %>% 
+  summarise(n = n()) %>% 
+  arrange(desc(n))
+
+# weighted distance
+alldata_with_frequency <- left_join(paperid_year, frequency_Distance_all, by = "Distance")
+
+# distance weighted
+d_d_all_w <- ggplot(alldata_with_frequency, aes(x = Distance, y = Dscore, color = Year, alpha = 0.5/n)) +
+  geom_scattermore() + theme_cowplot()
+d_d_all_w
+```
+
+If you notice the missing data is as much as 1/3 of the total data. You may wonder how those missing data distributed, and how the missing data affect the result. 
+Let's see the missing data.
+
+```{r missing data}
+missing_data <- paperid_year %>%
+  filter(is.na(Dscore))
+
+di_hist_miss <- ggplot(missing_data, aes(x = Distance))
+di_hist_miss + geom_histogram()
+
+year_hist_miss <- ggplot(missing_data, aes(x = Year))
+year_hist_miss + geom_histogram()
+
+# y_d: Year vs Distance
+y_d_missing <- ggplot(missing_data, aes(x = Distance, y = Year)) +
+  geom_point(alpha = 0.1) + theme_cowplot()
+```
+
+Now, let's reanalyze the data using the regression model with Laplace prior.
+
+```{r linear regression}
+full_model <- vglm(Dscore ~ Distance + fields + Year, family = laplace, data = paperid_year)
+# check which parameters can have priors
+get_prior(Dscore ~ Distance + fields + Year, data = paperid_year)
+# set the prior for the regression
+prior <- set_prior("normal(0, 1)", class = "b") +
+  set_prior("normal(0, 1)", class = "Intercept") +
+  set_prior("cauchy(0, 1)", class = "sd")
+# regression with Laplace distribution prior
+linear_regression <- brm(Dscore ~ Distance + fields, data = paperid_year)
+
 ```
