@@ -1,10 +1,11 @@
 ---
 title: "International cooperation"
-author: "L.-Y. M."
-date: "2024-02-14"
+author: "Lingyu. Meng"
+date: "2024-04-18"
 output:
   pdf_document: default
   html_document: default
+bibliography: references.bib
 ---
 
 ```{r setup, include=FALSE}
@@ -12,15 +13,45 @@ library("tidyverse")
 library("ggExtra") # for marginal plot
 library("scattermore")
 library("cowplot")
-# library("VGAM")
 library("gganimate")
+# library("gifski") # for gif, need to install gifski but do not need to load it
+# library("png") # for png, need to install png but do not need to load it
 ```
 
-## R Markdown
+# Remote collaboration fuses more citable ideas (Now)
 
-Reference: Lin, Y., Frey, C. B., & Wu, L. (2023). Remote collaboration fuses fewer breakthrough ideas. Nature, 623(7989), 987–991. <https://doi.org/10.1038/s41586-023-06767-1>
+As the world becomes more connected, remote collaboration is becoming more common. However, the recent study rises a question: does remote collaboration really good for the scientific community? The paper published in Nature may provide some disappoiting answer. But if we look at the data, we may find some interesting things.
+
+## Fewer breakthrough ideas?
+
+Lin et al. @lin2023 found that remote collaboration fuses fewer breakthrough ideas. They analyzed the data of 20,134,803 papers published in 1960-2020. They found that the Dscore, which is a measure of the breakthrough ideas, is negatively correlated with the distance between collaborators.
+
+Here is the abstract:
+
+> Theories of innovation emphasize the role of social networks and teams as facilitators of breakthrough discoveries. Around the world, scientists and inventors are more plentiful and interconnected today than ever before. However, although there are more people making discoveries, and more ideas that can be reconfigured in new ways, research suggests that new ideas are getting harder to find — contradicting recombinant growth theory. Here we shed light on this apparent puzzle. Analysing 20 million research articles and 4 million patent applications from across the globe over the past half-century, we begin by documenting the rise of remote collaboration across cities, underlining the growing interconnectedness of scientists and inventors globally. We further show that across all fields, periods and team sizes, researchers in these remote teams are consistently less likely to make breakthrough discoveries relative to their on-site counterparts. Creating a dataset that allows us to explore the division of labour in knowledge production within teams and across space, we find that among distributed team members, collaboration centres on late-stage, technical tasks involving more codified knowledge. Yet they are less likely to join forces in conceptual tasks—such as conceiving new ideas and designing research—when knowledge is tacit. We conclude that despite striking improvements in digital technology in recent years, remote teams are less likely to integrate the knowledge of their members to produce new, disruptive ideas.
+
+No need to ask, this paper exert a great influence. According to the [Altmetric](https://nature.altmetric.com/details/156927984), it has been mentioned in 41 news outlets and 2,117 tweeters.
+
+Some people also have some doubts about the result. One must-read comment is from James Hawley @hawley2023, who carefully pointed out some concerns about the metrics, data, and the method. He also created a schematic to show how D score is calculated. The schematic is very helpful for understanding the paper.
+
+The main concern can be summarized as follows:
+
+1.  Data quality: There are large amounts of data with NaNs in the D score column. Most of the variance in D score is driven by 1% of the overall data.
+2.  Method issue: The machine learning model used in the paper is not well explained, and the OLS is not appropriate for the data.
+3.  Causality concern: The paper didn't discuss the potential confounding factors. For example, the Berkson’s paradox.
+
+Hawley concluded that the paper is interesting but needs more work to be convincing. For this project, I will focus on the missing data and show how the missing data affect the result.
+
+## Why the data is missing?
+
+Considering that the missing data accounts for as much as 28% of the total dataset, it is essential to discuss why this data is missing and whether its absence affects the results. The original paper did not mention the missing data. However, as Hawley pointed out, the absence of D scores is likely due to the papers never being cited. One might argue that non-cited papers could be treated as having a D score of 0. However, given that even the least disruptive papers, which could potentially have a negative D score, are cited at least once, it is not appropriate to consider non-cited papers as more disruptive than non-disruptive papers. Therefore, treating non-cited papers as missing data is the most appropriate approach.
+
+That means as long as the paper is cited, the D score is available. I would like to see whether the missing data is related to the distance between collaborators. Because different from agruable D score, the citation per se is directly and intuitively enough to reflect the quality of the paper.
+
+Thanks to the open data policy, we can analse the missing data by ourselves.
 
 The raw date used in this project can be found in [here](https://www.dropbox.com/scl/fi/16zx8y4he5l20iaahf3m8/RemoteTeam_DataForMainFigrues.zip?rlkey=c59tog9qecn61fvuzo9o0aczu&e=2&dl=0). Or using the provided link in the paper which is <https://lyl010.github.io>. You need click "Code & Data" and then click "Data" to navigate the data page. Please download the data, which is a file named "raw data.zip", and unzip it in the same directory as this file.
+
 
 ```{r data input, echo = FALSE}
 dataset1 <- read_csv("raw data/Paperid_Remoteness_Authors_Teamroles.csv")
@@ -33,8 +64,6 @@ dataset5 <- read_csv("raw data/Paperid_Remoteness_Authors_Teamroles.csv")
 ```
 
 ## Prepare data
-
-You can also embed plots, for example:
 
 ```{r data reshaping}
 connection_data <- dataset2 %>% 
@@ -157,6 +186,7 @@ d_d_inte <- ggplot(top_paper %>% filter(Distance > 700), aes(x = Distance, y = D
   theme(legend.position = "left")
 ggMarginal(d_d_inte, type = "histogram")
 ```
+
 The data of international collaboration is also right-skewed. It is probably due to the convenience of international collaboration in the Europe. Let's consider the data of intercontinental collaboration in the next step. In top 10 countries which published most papers, the most close countries pair (intercontinental) are Australia and Japan. The distance between them is 6,766 km. Let's assume that it is a threshold to distinguish intercontinental collaboration.
 
 ```{r data of intercontinental collaboration}
@@ -198,6 +228,7 @@ d_d_most <- ggplot(most_paper, aes(x = Distance, y = Dscore, color = Year)) +
 d_d_most + theme_cowplot()
 ggMarginal(d_d_most, type = "histogram")
 ```
+
 Let's see all the data in one graph.
 
 ```{r all data}
@@ -237,7 +268,9 @@ d_d_all_AH <- paperid_year %>%
 d_d_all_AH
 
 ```
+
 One potential explanation for the distribution of the data is the file-drawer problem. The file-drawer problem is a problem in meta-analysis in which studies with null results are less likely to be published than studies with significant results. It is possible that the data is biased because the less breakthrough results are less likely to be published. Let's see the distribution of the data by categories.
+
 ```{r analysis by categories}
 breaks_distacne <- c(-1, 5000, 10000, 15000, 20000)
 breaks_dscore <- c(-1, -0.5, 0, 0.5, 1)
@@ -248,6 +281,7 @@ table(data_classified$Distance, data_classified$Dscore) %>%
 prop.table(margin = 1)
 d_d_all_classified <- ggplot(data_classified, aes(x = Distance, y = Dscore, color = Year)) +
 ```
+
 Most papers are located in the range of 0 to 1000 km. If we weithed each data point by the number of papers in the same distance, we can see the distribution of the data more clearly.
 
 ```{r weighted data}
@@ -265,8 +299,7 @@ d_d_all_w <- ggplot(alldata_with_frequency, aes(x = Distance, y = Dscore, color 
 d_d_all_w
 ```
 
-If you notice the missing data is as much as 1/3 of the total data. You may wonder how those missing data distributed, and how the missing data affect the result. 
-Let's see the missing data.
+If you notice the missing data is as much as 1/3 of the total data. You may wonder how those missing data distributed, and how the missing data affect the result. Let's see the missing data.
 
 ```{r missing data}
 missing_data <- paperid_year %>%
@@ -280,11 +313,10 @@ year_hist_miss + geom_histogram()
 
 # visualizing the missing data
 breaks_distacne_fine <- c(-1, 0.5, 1000, 5000, 10000, 15000, 20000)
-breaks_year <- seq(from = 1960, to = 2020, by = 5)
 missing_data_cat <- paperid_year %>%
   select(Distance, Year, Dscore) %>%
-  mutate(Distance = cut(Distance, breaks = breaks_distacne_fine, labels = c("0", "1", "1000", "5000", "10000", "15000")),
-         Year = cut(Year, breaks = breaks_year, labels = c("1960", "1965", "1970", "1975", "1980", "1985", "1990", "1995", "2000", "2005", "2010", "2015"))) %>% 
+  mutate(Distance = cut(Distance, breaks = breaks_distacne_fine,
+                        labels = c("0", "1-1000", "1000-5000", "5000-10000", "10000-15000", "15000-20000"))) %>%
   group_by(Distance, Year) %>%
   summarise(N = n(), n = sum(is.na(Dscore)), .groups = 'drop') %>% 
   ungroup() %>% 
@@ -300,7 +332,39 @@ y_d_missing <- missing_data_cat %>%
   labs(title = "Heatmap of missing data", fill = "Missing Rate") +
   theme_cowplot()
 y_d_missing
+
+odd_ratio <- missing_data_cat %>%
+  select(Distance, Year, missing_rate) %>%
+  pivot_wider(names_from = Distance, values_from = missing_rate)
+# missing rate of 0 km / missing rate of other distance, that is relative citation rate for the given distance
+odd_ratio[,3:7] <- odd_ratio$`0` / odd_ratio[,3:7] 
+
+odd_ratio <- odd_ratio %>%
+  select(-`0`) %>%
+  pivot_longer(cols = 2:6, names_to = "Distance", values_to = "odd_ratio") %>% 
+  mutate(Internet_Age = ifelse(Year < 1990, "No", "Yes")) # the establishment of Postmodern Culture in 1990 as the first online-only journal
+
+# reorder the distance
+custom_order <- c("0", "1-1000", "1000-5000", "5000-10000", "10000-15000", "15000-20000")
+odd_ratio$Distance <- factor(odd_ratio$Distance, levels = custom_order)
+
+anim_missing <- odd_ratio %>% 
+  ggplot(aes(x = Distance, y = odd_ratio, fill = Internet_Age)) +
+  geom_bar(stat = "identity") +
+  transition_time(Year) +
+  theme_cowplot() + 
+  ease_aes('linear') +
+  geom_abline(intercept = 1, slope = 0, linetype = "dashed") +
+  labs(title = "Relative citation rate in {round(frame_time)}",
+       y = "Odds Ratio", x = "Distance between collaborators (km)",
+       caption = "Odds ratio higher than 1 means higher likelihood of being citated than local collaboration",
+       fill = "Available in an online journal?") +
+  labs(subtitle = "Remote versus on-site collaboration by distance between collaborators") +
+  theme(axis.text.x = element_text(size = 10),
+        legend.position = c(0.1, 0.85))
+anim_missing
 ```
+
 So in the row of 2015 which including data from 2015 to 2020, the missing rate is the highest. It is probably due to that 2020 is the year of data collection. Papers published in 2020 and a few years before are less likely to be cited.
 
 Now, let's reanalyze the data using the regression model with Laplace prior.
@@ -317,3 +381,15 @@ prior <- set_prior("normal(0, 1)", class = "b") +
 linear_regression <- brm(Dscore ~ Distance + fields, data = paperid_year)
 
 ```
+
+Using animation to show the changing of distance and Dscore along the year.
+
+```{r animation}
+main <- paperid_year %>% 
+  ggplot(aes(x = Distance, y = Dscore, color = Year), frame(Year)) +
+  geom_scattermore(alpha = 0.1) +
+  theme_cowplot()
+main + transition_time(Year)
+```
+
+# References
