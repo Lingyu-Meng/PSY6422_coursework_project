@@ -32,7 +32,9 @@ Hawley concluded that the paper is interesting but needs more work to be convinc
 
 # Why the data is missing?
 
-Considering that the missing data accounts for as much as 28% of the total dataset, it is essential to discuss why this data is missing and whether its absence affects the results. The original paper did not mention the missing data. However, as Hawley pointed out, the absence of D scores is likely due to the papers never being cited. One might argue that non-cited papers could be treated as having a D score of 0. However, given that even the least disruptive papers, which could potentially have a negative D score, are cited at least once, it is not appropriate to consider non-cited papers as more disruptive than non-disruptive papers. Therefore, treating non-cited papers as missing data is the most appropriate approach.
+Considering that the missing data accounts for as much as 28% of the total dataset, it is essential to discuss why this data is missing and whether its absence affects the results. The original paper did not mention the missing data. However, as Hawley pointed out, the absence of D scores is likely due to the papers never being cited. The definition of the D score is the proportion of papers solely referencing the focal paper without including its references, subtracted from the proportion of papers that reference both the focal paper and its associated references. If the focal paper is not cited, the former proportion is 0, and the D score is undefined. That is the most likely reason for as much as 28% of the data being missing.
+
+One might argue that non-cited papers could be treated as having a D score of 0. However, given that even the least disruptive papers, which could potentially have a negative D score, are cited at least once, it is not appropriate to consider non-cited papers as more disruptive than non-disruptive papers. Therefore, treating non-cited papers as missing data is the most appropriate approach.
 
 That means as long as the paper is cited, the D score is available. I would like to see whether the missing data is related to the distance between collaborators. Because different from arguable D score, the citation per se is directly and intuitively enough to reflect the quality of the paper.
 
@@ -67,7 +69,7 @@ library("gganimate")
 # library("png") # for png, need to install png but do not need to load it
 ```
 
-```{r data input, message = FALSE}
+```{r data input, message = F}
 # the file name is the variable name
 paperid_year <- read_delim("raw data/Paperid_Year_Discipline_Teamsize_Distance_Dscore.txt",
                            col_names = c("Paperid","Year","Discipline","Teamsize","Distance","Dscore"),
@@ -76,33 +78,47 @@ paperid_year <- read_delim("raw data/Paperid_Year_Discipline_Teamsize_Distance_D
 
 We will start by breaking down the data by distance. The distance between collaborators ranges from 0 to about 20000 km. The data is divided into six categories: 0 km, 0.1-1000 km, 1000-5000 km, 5000-10000 km, 10000-15000 km, and 15000-20000 km. The cited rate is calculated for each distance category and year. It is defined as the number of missing D scores divided by the total number of papers. The cited rate is then used to calculate the odds ratio of being cited for each distance category relative to the 0 km category. An odds ratio greater than 1 indicates a higher likelihood of being cited than on-site collaboration.
 
-```{r missing data, warning=FALSE}
-# calculate the missing rate
-breaks_distacne_fine <- c(-1, 0.1, 1000, 5000, 10000, 15000, 20000) # the minimum non-zero distance is 0.1725848 km
+```{r data wrangling}
+# calculate the citation rate
+breaks_distacne_fine <- c(-1, 0.1, 1000, 5000, 10000, 15000, 20000)
+# the minimum non-zero distance is 0.1725848 km
+
 missing_data_cat <- paperid_year %>%
   select(Distance, Year, Dscore) %>%
   mutate(Distance = cut(Distance, breaks = breaks_distacne_fine,
                         labels = c("0", "0.1-1000", "1000-5000", "5000-10000", "10000-15000", "15000-20000"))) %>%
   group_by(Distance, Year) %>%
   summarise(N = n(), n = sum(is.na(Dscore)), .groups = "drop") %>%
-  mutate(missing_rate = n/N)
+  mutate(citation_rate = 1 - n/N) # citation rate = 1 - missing rate
 
-odd_ratio <- missing_data_cat %>%
-  select(Distance, Year, missing_rate) %>%
-  pivot_wider(names_from = Distance, values_from = missing_rate)
-# missing rate of 0 km / missing rate of other distance, that is relative citation rate for the given distance
-odd_ratio[,3:7] <- odd_ratio$`0` / odd_ratio[,3:7] 
-
-odd_ratio <- odd_ratio %>%
+odds_ratio <- missing_data_cat %>%
+  select(Distance, Year, citation_rate) %>%
+  pivot_wider(names_from = Distance, values_from = citation_rate) %>% 
+  mutate(across(`0.1-1000`:`15000-20000`, ~./`0`)) %>% 
+  # odds ratio = citation rate of distance / citation rate of 0 km 
   select(-`0`) %>%
   pivot_longer(cols = 2:6, names_to = "Distance", values_to = "odd_ratio") %>% 
-  mutate(Internet_Age = ifelse(Year < 1990, "Before", "After")) # the establishment of Postmodern Culture in 1990 as the first online-only journal
+  mutate(Internet_Age = ifelse(Year < 1990, "Before", "After")) 
+  # the establishment of Postmodern Culture in 1990 as the first online-only journal
 
 # reorder the distance
 custom_order <- c("0.1-1000", "1000-5000", "5000-10000", "10000-15000", "15000-20000")
-odd_ratio$Distance <- factor(odd_ratio$Distance, levels = custom_order)
+odds_ratio$Distance <- factor(odds_ratio$Distance, levels = custom_order)
+```
 
-anim_missing <- odd_ratio %>% 
+```{r checks incorporated, include=FALSE}
+odds_ratio %>%
+  select(odd_ratio) %>%
+  summarise(
+    range(.),  # check the range of odds ratio
+    sum(is.na(.)), # check if there is any NA
+    sum(. < 0.8) # check the number of odds ratio lower than 0.8
+  )
+# although the range is 0.72-1.25, the y axis in the original paper is 0.8-1.3 as the outlier just appears two times
+```
+
+```{r animate, warning=FALSE}
+anim_missing <- odds_ratio %>% 
   ggplot(aes(x = Distance, y = odd_ratio, fill = Internet_Age)) +
   geom_bar(stat = "identity") +
   transition_time(Year) +
@@ -115,15 +131,22 @@ anim_missing <- odd_ratio %>%
        fill = "1990 (The first online-only journal established)") +
   labs(subtitle = "Remote versus on-site collaboration by distance between collaborators") +
   theme(axis.text.x = element_text(size = 10),
-        legend.position = c(0.05, 0.85))
+        legend.position = c(0.05, 0.9)) +
+  coord_cartesian(ylim = c(0.8, 1.3)) # the y axis in original paper is 0.8-1.1
 anim_missing
 ```
 
-The animation shows two tendencies. First, the odds ratio of being cited is generally higher for remote collaboration than for on-site collaboration after 1990. Second, the variance in the odds ratio is higher for longer distances.
+```{r saving gif, include=FALSE}
+# save the gif
+anim_save("relative_citation_rate.gif", animation = anim_missing, ani.width = 800, ani.height = 600)
+```
 
-For the first tendency, the most likely explanation is that the internet has made it easier for researchers to collaborate remotely. I chose 1990 as the cut-off year because it is the year that the first online-only journal, Postmodern Culture, was established. For the data after 2015, there appears a downward trend in the odds ratio for all distances. This may be due to the data collection time, as the data is collected in 2020, and the papers published in 2015-2020 have not had enough time to be cited. For those high influence papers, it may take shorter time to be cited. It may be reasonable to use the citation as the quality of the paper. However, for the papers with relatively lower influence or some specific disciplines, it may take longer time to be cited and show their difference between those never cited papers. Therefore, the statistic power for distinguishing the difference between the citable and non-citable papers may significantly decrease as the existing time decreases. That would be the reason why the odds ratio is decreasing for the recent years.
 
-For the second tendency, the variance in the odds ratio is higher for longer distances. This may be due to the fact that the sample size for longer distances is smaller, leading to a higher variance in the odds ratio. In this case, it implies that the higher likelihood of being cited for remote collaboration is stable and accurate.
+The animation depicts two tendencies. First, the odds ratio of being cited is generally higher for remote collaboration than for on-site collaboration after 1990. Second, the variance in the odds ratio is higher for longer distances.
+
+Regarding the first tendency, the most likely explanation is that the internet has made it easier for researchers to collaborate remotely. I chose 1990 as the cut-off year because it marks the establishment of the first online-only journal, Postmodern Culture. For data after 2010, the odds ratio is more stable and higher than before. There may be two reasons for this. First, the internet has become more accessible and reliable. Second, the explosion of papers, including non-cited papers, has made the data more robust. Even though the citation rate for papers published after 2015 is lower due to the lack of time for being cited, the higher sample size makes the result as reliable as before. Refer to the sections 'Distribution of Missing Data' and 'Explosion of Papers' for more information.
+
+Regarding the second tendency, the variance in the odds ratio is higher for longer distances. This may be due to the smaller sample size for longer distances, leading to a higher variance in the odds ratio. In this case, it implies that the higher likelihood of being cited for remote collaboration in the recent 10 years is more stable and accurate.
 
 # Why we should care about the non-cited paper?
 
@@ -135,7 +158,7 @@ This automatic ignore not only mislead the reader without critical thinking, but
 
 The short answer is to maintain the preference you had before.
 
-The original paper found that remote collaboration has about a 0.85 relative probability of disruption compared to on-site collaboration without time effect. Our analysis shows about a 1.5 relative probability of being cited compared to on-site collaboration after 2005. However, the trade-off is not simply subtractive.
+The original paper found that on-site collaboration has about a 1.08 relative probability of disruption compared to remote collaboration without time effect. Our analysis shows about higher than 1.1 relative probability of being cited compared to on-site collaboration after 2010. However, the trade-off is not simply subtractive.
 
 I believe that the effect size of remote collaboration on academic output is much less significant than individual differences. In daily decisions, decision-makers have much more information about their situation than data scientists. What I can infer from the data is that citable ideas may be more likely to attract collaboration. Considering the costs of remote collaboration, bad ideas may not be able to proceed. Therefore, for people who have an idea and are seeking collaboration, individual preference may be the most important factor.
 
@@ -245,6 +268,13 @@ df <- bind_rows(
 
 paperid_year_fields <- left_join(paperid_year, df, by = "Discipline")
 
+# check incorporated
+paperid_year_fields %>% 
+  is.na() %>%
+  sum() # check if there is any NA
+```
+
+```{r discipline}
 citation_rate_discipline <- paperid_year_fields %>%
   select(Distance, Year, Dscore, Fields) %>%
   mutate(Collaboration = ifelse(Distance > 0, "remote", "on-site")) %>%
