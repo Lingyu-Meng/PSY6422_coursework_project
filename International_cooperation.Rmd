@@ -1,30 +1,18 @@
 ---
-title: "International cooperation"
-author: "Lingyu. Meng"
-date: "2024-04-18"
+title: "Remote collaboration fuses more citable ideas (Now)"
+author: "Lingyu Meng"
+date: "2024-04-19"
 output:
-  pdf_document: default
   html_document: default
+  pdf_document: default
 bibliography: references.bib
 ---
 
-```{r setup, include=FALSE}
-library("tidyverse")
-library("ggExtra") # for marginal plot
-library("scattermore")
-library("cowplot")
-library("gganimate")
-# library("gifski") # for gif, need to install gifski but do not need to load it
-# library("png") # for png, need to install png but do not need to load it
-```
+As the world becomes more connected, remote collaboration is becoming more common. However, the recent study rises a question: does remote collaboration really good for the scientific community? The paper published in Nature may provide some disappointing answer. But if we look at the data, we may find some interesting things.
 
-# Remote collaboration fuses more citable ideas (Now)
+# Fewer breakthrough ideas?
 
-As the world becomes more connected, remote collaboration is becoming more common. However, the recent study rises a question: does remote collaboration really good for the scientific community? The paper published in Nature may provide some disappoiting answer. But if we look at the data, we may find some interesting things.
-
-## Fewer breakthrough ideas?
-
-Lin et al. @lin2023 found that remote collaboration fuses fewer breakthrough ideas. They analyzed the data of 20,134,803 papers published in 1960-2020. They found that the Dscore, which is a measure of the breakthrough ideas, is negatively correlated with the distance between collaborators.
+@lin2023 found that remote collaboration fuses fewer breakthrough ideas. They analysed the data of 20,134,803 papers published in 1960-2020. They found that the D score, which is a measure of the breakthrough ideas, is negatively correlated with the distance between collaborators.
 
 Here is the abstract:
 
@@ -32,306 +20,72 @@ Here is the abstract:
 
 No need to ask, this paper exert a great influence. According to the [Altmetric](https://nature.altmetric.com/details/156927984), it has been mentioned in 41 news outlets and 2,117 tweeters.
 
-Some people also have some doubts about the result. One must-read comment is from James Hawley @hawley2023, who carefully pointed out some concerns about the metrics, data, and the method. He also created a schematic to show how D score is calculated. The schematic is very helpful for understanding the paper.
+Some people also have some doubts about the result. One must-read comment is from @hawley2023, who carefully pointed out some concerns about the metrics, data, and the method. He also created a schematic to show how D score is calculated. The schematic is very helpful for understanding the paper.
 
 The main concern can be summarized as follows:
 
-1.  Data quality: There are large amounts of data with NaNs in the D score column. Most of the variance in D score is driven by 1% of the overall data.
+1.  Data quality: There are large amounts of data with `NaN`s in the D score column. Most of the variance in D score is driven by 1% of the overall data.
 2.  Method issue: The machine learning model used in the paper is not well explained, and the OLS is not appropriate for the data.
 3.  Causality concern: The paper didn't discuss the potential confounding factors. For example, the Berkson’s paradox.
 
-Hawley concluded that the paper is interesting but needs more work to be convincing. For this project, I will focus on the missing data and show how the missing data affect the result.
+Hawley concluded that the paper is interesting but needs more work to be convincing. For this project, I will focus on the missing data and show how the missing data affect the result. Only the data of papers will be used in this project.
 
-## Why the data is missing?
+# Why the data is missing?
 
 Considering that the missing data accounts for as much as 28% of the total dataset, it is essential to discuss why this data is missing and whether its absence affects the results. The original paper did not mention the missing data. However, as Hawley pointed out, the absence of D scores is likely due to the papers never being cited. One might argue that non-cited papers could be treated as having a D score of 0. However, given that even the least disruptive papers, which could potentially have a negative D score, are cited at least once, it is not appropriate to consider non-cited papers as more disruptive than non-disruptive papers. Therefore, treating non-cited papers as missing data is the most appropriate approach.
 
-That means as long as the paper is cited, the D score is available. I would like to see whether the missing data is related to the distance between collaborators. Because different from agruable D score, the citation per se is directly and intuitively enough to reflect the quality of the paper.
+That means as long as the paper is cited, the D score is available. I would like to see whether the missing data is related to the distance between collaborators. Because different from arguable D score, the citation per se is directly and intuitively enough to reflect the quality of the paper.
 
-Thanks to the open data policy, we can analse the missing data by ourselves.
+Thanks to the open data policy, we can analyse the missing data by ourselves.
+
+# Does the likelihood of being cited differ by distance?
+
+For clarity, I will using cited or non-cited to express the data with or without D score.
 
 The raw date used in this project can be found in [here](https://www.dropbox.com/scl/fi/16zx8y4he5l20iaahf3m8/RemoteTeam_DataForMainFigrues.zip?rlkey=c59tog9qecn61fvuzo9o0aczu&e=2&dl=0). Or using the provided link in the paper which is <https://lyl010.github.io>. You need click "Code & Data" and then click "Data" to navigate the data page. Please download the data, which is a file named "raw data.zip", and unzip it in the same directory as this file.
 
+```{r setup, message = FALSE}
+# List of required packages
+required_packages <- c("tidyverse","gganimate","cowplot","gifski","png")
 
-```{r data input, echo = FALSE}
-dataset1 <- read_csv("raw data/Paperid_Remoteness_Authors_Teamroles.csv")
-city_latlong <- read_csv("raw data/ScienceCityLatLong.csv")
-paperid_year <- read_delim("raw data/Paperid_Year_Discipline_Teamsize_Distance_Dscore.txt", col_names =
-                             c("Paperid","Year","Discipline","Teamsize","Distance","Dscore"), delim = "\t")
-dataset2 <- read_delim("raw data/ScienceDisruptionCityEdges.txt", col_names = 
-                         c("Connection","color","main_city","D_score1","D_score2"), delim = "\t")
-dataset5 <- read_csv("raw data/Paperid_Remoteness_Authors_Teamroles.csv")
+# Check and install missing packages
+install_if_missing <- function(packages) {
+  for (pkg in packages) {
+    if (!requireNamespace(pkg, quietly = TRUE)) {
+      install.packages(pkg, dependencies = TRUE)
+    }
+  }
+}
+
+install_if_missing(required_packages)
+
+# Load the required packages
+library("tidyverse")
+library("cowplot")
+library("gganimate")
+# library("gifski") # for gif, need to install gifski but do not need to load it
+# library("png") # for png, need to install png but do not need to load it
 ```
 
-## Prepare data
-
-```{r data reshaping}
-connection_data <- dataset2 %>% 
-  unite(D_score,c("D_score1","D_score2"),sep = ",")
-
-# we use the same way to classify the discipline as the original paper
-science_and_engineering = c("geology","medicine","mathematics","physics","materials science",
-                            "biology","chemistry","engineering","computer science","geography",
-                            "environmental science")
-social_sciences <- c("political science","business","economics","psychology","sociology")
-art_and_humanity <- c("history","art","philosophy")
-# the definition above can be found in the code of the original paper
-
-df <- bind_rows(
-  data.frame(Discipline = science_and_engineering, fields = "science_and_engineering"),
-  data.frame(Discipline = social_sciences, fields = "social_sciences"),
-  data.frame(Discipline = art_and_humanity, fields = "art_and_humanity")
-)
-
-paperid_year <- left_join(paperid_year, df, by = "Discipline")
+```{r data input, message = FALSE}
+# the file name is the variable name
+paperid_year <- read_delim("raw data/Paperid_Year_Discipline_Teamsize_Distance_Dscore.txt",
+                           col_names = c("Paperid","Year","Discipline","Teamsize","Distance","Dscore"),
+                           delim = "\t")
 ```
 
-```{r top1 percent}
-top_paper <- paperid_year %>% 
-  filter(Dscore > 0.2)
-# ds: Dscore; di: Distance; hist: histogram
-ds_hist <- ggplot(top_paper, aes(x = Dscore))
-ds_hist + geom_histogram()
+We will start by breaking down the data by distance. The distance between collaborators ranges from 0 to about 20000 km. The data is divided into six categories: 0 km, 0.1-1000 km, 1000-5000 km, 5000-10000 km, 10000-15000 km, and 15000-20000 km. The cited rate is calculated for each distance category and year. It is defined as the number of missing D scores divided by the total number of papers. The cited rate is then used to calculate the odds ratio of being cited for each distance category relative to the 0 km category. An odds ratio greater than 1 indicates a higher likelihood of being cited than on-site collaboration.
 
-# n0: no 0 (distance)
-ds_n0_hist <- top_paper %>% 
-  filter(Distance > 0) %>%
-  ggplot(aes(x = Dscore))
-ds_n0_hist + geom_histogram()
-
-di_hist <- ggplot(top_paper, aes(x = Distance))
-di_hist + geom_histogram()
-
-di_n0_hist <- top_paper %>% 
-  filter(Distance > 0) %>%
-  ggplot(aes(x = Distance))
-di_n0_hist + geom_histogram()
-
-# d_d: distance vs Dscore
-d_d <- ggplot(top_paper, aes(x = Distance, y = Dscore, color = Year)) +
-  geom_point(alpha = 0.1) +
-  theme_cowplot() +
-  theme(legend.position = "left")
-ggMarginal(d_d, type = "histogram")
-
-d_d_n0 <- ggplot(top_paper %>% filter(Distance > 0), aes(x = Distance, y = Dscore, color = Year, shape = fields)) +
-  geom_point(alpha = 0.1) +
-  theme_cowplot() +
-  theme(legend.position = "left")
-ggMarginal(d_d_n0, type = "histogram")
-```
-
-It is obvious that there are several value of Dscore are extremely frequent. It is probably due to the few cited papers. Let's filter out those papers and replot the graph.
-
-```{r frequency of Dscore}
-# calculate the frequency of each Dscore value
-frequency_Dscore <- top_paper %>% 
-  group_by(Dscore) %>% 
-  summarise(n = n()) %>% 
-  arrange(desc(n))
-
-# filter out the few cited papers (extremely frequent Dscore)
-# ex_lc: exclude the few cited papers
-ex_fc <- left_join(top_paper, frequency_Dscore, by = "Dscore") %>% 
-  filter(n < 1000) # that is an arbitrary threshold
-
-d_d_n0_ex_fc <- ex_lc %>% 
-  filter(Distance > 0) %>%
-  ggplot(aes(x = Distance, y = Dscore, color = Year)) + 
-  geom_point(alpha = 0.1) + theme_cowplot() + theme(legend.position = "left")
-ggMarginal(d_d_n0_ex_fc, type = "histogram")
-```
-
-```{r log scale}
-d_d_n0_log <- d_d_n0 + scale_x_continuous(trans = 'log10') + # Log scale for x-axis
-  scale_y_continuous(trans = 'log10') +# Log scale for y-axis
-  theme_cowplot() +
-  theme(legend.position = "left")
-ggMarginal(d_d_n0_log, type = "histogram")
-```
-
-Now we focus on the data of local collaboration, that is the distance is 0.
-
-```{r distribution of Dscore in local}
-# l: local
-ds_hist_l_ex_fc <- ex_fc %>% 
-  filter(Distance == 0) %>%
-  ggplot(aes(x = Dscore))
-ds_hist_l_ex_fc + geom_histogram()
-```
-
-The resason why distance is extremly right-skewed might be that those papers are demestic collaboration. It is impossible to investigate the affect of demestic / international collaboration on the Dscore due to the data lack of that information. However, we can use distance as a proxy of demestic / international collaboration. According SJR, Germany is top 4 country which published most paper and has a medium territory area, that is 357,021 km2. Let's assume that it is a circle, then the radius is 337 km. We can use this value as a threshold to distinguish demestic and international collaboration.
-
-```{r data of demestic collabo}
-# deme: demestic
-d_d_deme_ex_fc <- ex_fc %>%
-  filter(Distance < 337) %>%
-  ggplot(aes(x = Distance, y = Dscore, color = Year)) +
-  geom_point(alpha = 0.1) + theme_cowplot() +
-  theme(legend.position = "left")
-ggMarginal(d_d_deme_ex_fc, type = "histogram")
-
-d_d_deme_n0_ex_fc <- ex_fc %>%
-  filter(Distance < 337) %>%
-  filter(Distance > 0) %>%
-  ggplot(aes(x = Distance, y = Dscore, color = Year)) +
-  geom_point(alpha = 0.1) + theme_cowplot() + 
-  theme(legend.position = "left")
-ggMarginal(d_d_deme_n0_ex_fc, type = "histogram")
-```
-
-```{r data of international collaboration}
-d_d_inte <- ggplot(top_paper %>% filter(Distance > 700), aes(x = Distance, y = Dscore, color = Year, shape = fields)) +
-  geom_point(alpha = 0.1) + theme_cowplot() +
-  theme(legend.position = "left")
-ggMarginal(d_d_inte, type = "histogram")
-```
-
-The data of international collaboration is also right-skewed. It is probably due to the convenience of international collaboration in the Europe. Let's consider the data of intercontinental collaboration in the next step. In top 10 countries which published most papers, the most close countries pair (intercontinental) are Australia and Japan. The distance between them is 6,766 km. Let's assume that it is a threshold to distinguish intercontinental collaboration.
-
-```{r data of intercontinental collaboration}
-d_d_interconti_ex_fc <- ex_fc %>%
-  filter(Distance > 6766) %>%
-  ggplot(aes(x = Distance, y = Dscore, color = Year)) +
-  geom_point(alpha = 0.1) + theme_cowplot() +
-  theme(legend.position = "left")
-ggMarginal(d_d_interconti_ex_fc, type = "histogram")
-```
-
-For the most papers, which Dscore concentrated in the range of -0.2 to 0.2.
-
-```{r data of 99 percent}
-most_paper <- paperid_year %>% 
-  filter(Dscore < 0.2) %>%
-  filter(Dscore > -0.2)
-# ds: Dscore; di: Distance; hist: histogram
-ds_hist_most <- ggplot(most_paper, aes(x = Dscore))
-ds_hist_most + geom_histogram()
-
-# n0: no 0 (distance)
-ds_n0_hist_most <- most_paper %>% 
-  filter(Distance > 0) %>%
-  ggplot(aes(x = Dscore))
-ds_n0_hist_most + geom_histogram()
-
-di_hist_most <- ggplot(most_paper, aes(x = Distance))
-di_hist_most + geom_histogram()
-
-di_n0_hist_most <- most_paper %>% 
-  filter(Distance > 0) %>%
-  ggplot(aes(x = Distance))
-di_n0_hist_most + geom_histogram()
-
-# d_d: distance vs Dscore
-d_d_most <- ggplot(most_paper, aes(x = Distance, y = Dscore, color = Year)) +
-  geom_scattermore(alpha = 0.1) # using scattermore for speed; otherwise, it will take forever
-d_d_most + theme_cowplot()
-ggMarginal(d_d_most, type = "histogram")
-```
-
-Let's see all the data in one graph.
-
-```{r all data}
-d_d_all <- ggplot(paperid_year, aes(x = Distance, y = Dscore, color = Year)) +
-  geom_scattermore(alpha = 0.05) + theme_cowplot()
-d_d_all
-
-anim_all <- paperid_year %>% 
-  ggplot(aes(x = Distance, y = Dscore, color = Year), frame(Year)) +
-  geom_scattermore() +
-  
-anim_all
-# ggMarginal(d_d_all, type = "histogram")
-
-d_d_all_SE <- paperid_year %>%
-  filter(fields == "science_and_engineering") %>%
-  ggplot(aes(x = Distance, y = Dscore, color = Year)) +
-  geom_scattermore(alpha = 0.05) + theme_cowplot() +
-  scale_color_gradient(low="black", high="#619CFF") +
-  title("Science and Engineering")
-d_d_all_SE
-
-d_d_all_SS <- paperid_year %>%
-  filter(fields == "social_sciences") %>%
-  ggplot(aes(x = Distance, y = Dscore, color = Year)) +
-  geom_scattermore(alpha = 0.05) + theme_cowplot() +
-  scale_color_gradient(low="black", high="#00BA38") +
-  title("Social Sciences")
-d_d_all_SS
-
-d_d_all_AH <- paperid_year %>%
-  filter(fields == "art_and_humanity") %>%
-  ggplot(aes(x = Distance, y = Dscore, color = Year)) +
-  geom_scattermore(alpha = 0.05) + theme_cowplot() +
-  scale_color_gradient(low="black", high="#F8766D") +
-  title("Art and Humanity")
-d_d_all_AH
-
-```
-
-One potential explanation for the distribution of the data is the file-drawer problem. The file-drawer problem is a problem in meta-analysis in which studies with null results are less likely to be published than studies with significant results. It is possible that the data is biased because the less breakthrough results are less likely to be published. Let's see the distribution of the data by categories.
-
-```{r analysis by categories}
-breaks_distacne <- c(-1, 5000, 10000, 15000, 20000)
-breaks_dscore <- c(-1, -0.5, 0, 0.5, 1)
-data_classified <- paperid_year %>%
-  mutate(Distance = cut(Distance, breaks = breaks_distacne, labels = c("0-5000", "5000-10000", "10000-15000", "15000-20000")),
-         Dscore = cut(Dscore, breaks = breaks_dscore, labels = c("(-1, -0.5]", "(-0.5, 0]", "(0, 0.5]", "(0.5, 1]")))
-table(data_classified$Distance, data_classified$Dscore) %>% 
-prop.table(margin = 1)
-d_d_all_classified <- ggplot(data_classified, aes(x = Distance, y = Dscore, color = Year)) +
-```
-
-Most papers are located in the range of 0 to 1000 km. If we weithed each data point by the number of papers in the same distance, we can see the distribution of the data more clearly.
-
-```{r weighted data}
-frequency_Distance_all <- paperid_year %>%
-  group_by(Distance) %>% 
-  summarise(n = n()) %>% 
-  arrange(desc(n))
-
-# weighted distance
-alldata_with_frequency <- left_join(paperid_year, frequency_Distance_all, by = "Distance")
-
-# distance weighted
-d_d_all_w <- ggplot(alldata_with_frequency, aes(x = Distance, y = Dscore, color = Year, alpha = 0.5/n)) +
-  geom_scattermore() + theme_cowplot()
-d_d_all_w
-```
-
-If you notice the missing data is as much as 1/3 of the total data. You may wonder how those missing data distributed, and how the missing data affect the result. Let's see the missing data.
-
-```{r missing data}
-missing_data <- paperid_year %>%
-  filter(is.na(Dscore))
-
-di_hist_miss <- ggplot(missing_data, aes(x = Distance))
-di_hist_miss + geom_histogram()
-
-year_hist_miss <- ggplot(missing_data, aes(x = Year))
-year_hist_miss + geom_histogram()
-
-# visualizing the missing data
-breaks_distacne_fine <- c(-1, 0.5, 1000, 5000, 10000, 15000, 20000)
+```{r missing data, warning=FALSE}
+# calculate the missing rate
+breaks_distacne_fine <- c(-1, 0.1, 1000, 5000, 10000, 15000, 20000) # the minimum non-zero distance is 0.1725848 km
 missing_data_cat <- paperid_year %>%
   select(Distance, Year, Dscore) %>%
   mutate(Distance = cut(Distance, breaks = breaks_distacne_fine,
-                        labels = c("0", "1-1000", "1000-5000", "5000-10000", "10000-15000", "15000-20000"))) %>%
+                        labels = c("0", "0.1-1000", "1000-5000", "5000-10000", "10000-15000", "15000-20000"))) %>%
   group_by(Distance, Year) %>%
-  summarise(N = n(), n = sum(is.na(Dscore)), .groups = 'drop') %>% 
-  ungroup() %>% 
+  summarise(N = n(), n = sum(is.na(Dscore)), .groups = "drop") %>%
   mutate(missing_rate = n/N)
-
-# y_d: Year vs Distance
-y_d_missing <- missing_data_cat %>% 
-  ggplot(aes(x = Distance, y = Year, fill = missing_rate,
-             label = round(missing_rate, 2))) +
-  geom_tile() +
-  geom_text(color = "black") +  # Add text labels
-  scale_fill_gradient(low = "white", high = "red") +
-  labs(title = "Heatmap of missing data", fill = "Missing Rate") +
-  theme_cowplot()
-y_d_missing
 
 odd_ratio <- missing_data_cat %>%
   select(Distance, Year, missing_rate) %>%
@@ -342,10 +96,10 @@ odd_ratio[,3:7] <- odd_ratio$`0` / odd_ratio[,3:7]
 odd_ratio <- odd_ratio %>%
   select(-`0`) %>%
   pivot_longer(cols = 2:6, names_to = "Distance", values_to = "odd_ratio") %>% 
-  mutate(Internet_Age = ifelse(Year < 1990, "No", "Yes")) # the establishment of Postmodern Culture in 1990 as the first online-only journal
+  mutate(Internet_Age = ifelse(Year < 1990, "Before", "After")) # the establishment of Postmodern Culture in 1990 as the first online-only journal
 
 # reorder the distance
-custom_order <- c("0", "1-1000", "1000-5000", "5000-10000", "10000-15000", "15000-20000")
+custom_order <- c("0.1-1000", "1000-5000", "5000-10000", "10000-15000", "15000-20000")
 odd_ratio$Distance <- factor(odd_ratio$Distance, levels = custom_order)
 
 anim_missing <- odd_ratio %>% 
@@ -355,41 +109,228 @@ anim_missing <- odd_ratio %>%
   theme_cowplot() + 
   ease_aes('linear') +
   geom_abline(intercept = 1, slope = 0, linetype = "dashed") +
-  labs(title = "Relative citation rate in {round(frame_time)}",
+  labs(title = "Relative citation rate of academic papers published in {round(frame_time)}",
        y = "Odds Ratio", x = "Distance between collaborators (km)",
-       caption = "Odds ratio higher than 1 means higher likelihood of being citated than local collaboration",
-       fill = "Available in an online journal?") +
+       caption = "Odds ratio higher than 1 means higher likelihood of being citated than on-site collaboration",
+       fill = "1990 (The first online-only journal established)") +
   labs(subtitle = "Remote versus on-site collaboration by distance between collaborators") +
   theme(axis.text.x = element_text(size = 10),
-        legend.position = c(0.1, 0.85))
+        legend.position = c(0.05, 0.85))
 anim_missing
 ```
 
-So in the row of 2015 which including data from 2015 to 2020, the missing rate is the highest. It is probably due to that 2020 is the year of data collection. Papers published in 2020 and a few years before are less likely to be cited.
+The animation shows two tendencies. First, the odds ratio of being cited is generally higher for remote collaboration than for on-site collaboration after 1990. Second, the variance in the odds ratio is higher for longer distances.
 
-Now, let's reanalyze the data using the regression model with Laplace prior.
+For the first tendency, the most likely explanation is that the internet has made it easier for researchers to collaborate remotely. I chose 1990 as the cut-off year because it is the year that the first online-only journal, Postmodern Culture, was established. For the data after 2015, there appears a downward trend in the odds ratio for all distances. This may be due to the data collection time, as the data is collected in 2020, and the papers published in 2015-2020 have not had enough time to be cited. For those high influence papers, it may take shorter time to be cited. It may be reasonable to use the citation as the quality of the paper. However, for the papers with relatively lower influence or some specific disciplines, it may take longer time to be cited and show their difference between those never cited papers. Therefore, the statistic power for distinguishing the difference between the citable and non-citable papers may significantly decrease as the existing time decreases. That would be the reason why the odds ratio is decreasing for the recent years.
 
-```{r linear regression}
-full_model <- vglm(Dscore ~ Distance + fields + Year, family = laplace, data = paperid_year)
-# check which parameters can have priors
-get_prior(Dscore ~ Distance + fields + Year, data = paperid_year)
-# set the prior for the regression
-prior <- set_prior("normal(0, 1)", class = "b") +
-  set_prior("normal(0, 1)", class = "Intercept") +
-  set_prior("cauchy(0, 1)", class = "sd")
-# regression with Laplace distribution prior
-linear_regression <- brm(Dscore ~ Distance + fields, data = paperid_year)
+For the second tendency, the variance in the odds ratio is higher for longer distances. This may be due to the fact that the sample size for longer distances is smaller, leading to a higher variance in the odds ratio. In this case, it implies that the higher likelihood of being cited for remote collaboration is stable and accurate.
 
+# Why we should care about the non-cited paper?
+
+An intuitive way to treat the non-cited paper is to ignore it as other scholars do. However, that is not the case when you are looking for the consequence of some factors on the academic out put. When people conclude that the remote collaboration lead to less breakthrough ideas, they means or at least imply a general effect of the remote collaboration. For a random paper, there is a fair chance that it is non-cited, as the data has shown: 28%. If you conclusion is for the cited paper, you should mention it. Then people will automatically think about the potential bias of the non-cited paper. If you ignore the non-cited paper, and did not mention it, people may think that you have already considered it. Unfortunately, that is not the case for this influential paper.
+
+This automatic ignore not only mislead the reader without critical thinking, but also may block the potential suspect from the reader who has critical thinking.
+
+# After all, shall I choose remote collaboration?
+
+The short answer is to maintain the preference you had before.
+
+The original paper found that remote collaboration has about a 0.85 relative probability of disruption compared to on-site collaboration without time effect. Our analysis shows about a 1.5 relative probability of being cited compared to on-site collaboration after 2005. However, the trade-off is not simply subtractive.
+
+I believe that the effect size of remote collaboration on academic output is much less significant than individual differences. In daily decisions, decision-makers have much more information about their situation than data scientists. What I can infer from the data is that citable ideas may be more likely to attract collaboration. Considering the costs of remote collaboration, bad ideas may not be able to proceed. Therefore, for people who have an idea and are seeking collaboration, individual preference may be the most important factor.
+
+The original paper acknowledges that citations increase as the distance between collaborators increases. However, they explain this as evidence to show that their measure of disruption is independent of citation. This might make sense for sufficiently cited papers. However, for non-cited papers, the basic logic remains that the breakthrough of cited papers cannot be lower than that of non-cited papers.
+
+This project shared a lots of limitations with the original paper. Considering they didn't share process free data, we cannot include as more potential factors as the original paper could. However, by considering the missing data, we provide a more comprehensive view of the data.
+
+# Conclusion and Significance
+
+1.  By looking at the ignored data, we found an opposite result to the original paper using the same data set. This finding indicates the importance of describing the analysis process in detail and sharing the data.
+
+2.  Instead of supposing selection bias, we confirmed that the missing data is related to the distance between collaborators. This finding indicates that it is true that on-site collaboration yields more uncitable papers, and this ignored result may affect the result of the original paper.
+
+3.  Don't be afraid of remote collaboration. The data shows strong evidence that the remote collaboration is good for the scientific community, as the original paper shows that it is bad, and we did find a time effect for getting a better result.
+
+# Extended analysis
+
+## Distribution of missing data
+
+The first histogram illustrates the distribution of missing data across the distance between collaborators. It shows that missing data is more frequent when the distance between collaborators is less than 1000 km. The second histogram depicts the distribution of missing data over time, indicating a higher number of occurrences in recent years. Both trends are attributed to the amount of data in each corresponding category.
+
+```{r missing data plot}
+missing_data <- paperid_year %>%
+  filter(is.na(Dscore))
+
+di_hist_miss <- ggplot(missing_data, aes(x = Distance))
+di_hist_miss + geom_histogram()
+
+year_hist_miss <- ggplot(missing_data, aes(x = Year))
+year_hist_miss + geom_histogram()
 ```
 
-Using animation to show the changing of distance and Dscore along the year.
+## Distribution of distance among remote collaboration
 
-```{r animation}
-main <- paperid_year %>% 
-  ggplot(aes(x = Distance, y = Dscore, color = Year), frame(Year)) +
-  geom_scattermore(alpha = 0.1) +
+```{r distance with remote collaboration}
+paperid_year %>% 
+  filter(Distance > 0) %>%
+  mutate(cited = ifelse(is.na(Dscore), "non-cited", "cited")) %>%
+  ggplot(aes(x = Distance, fill = cited)) + 
+  geom_histogram(position = "stack") + 
+  labs(title = "Distribution of distance among remote collaboration (stack)")
+```
+
+The histogram shows the distribution of distance for all data points with a distance greater than 0.
+
+As the original paper mentioned, "among remote teams, 22% of the sample have a collaboration distance of 0–200 km, and 11%, 7% and 60% of the papers have a collaboration distance of 200–400 km, 400–600 km and more than 600 km, respectively."
+
+```{r data check}
+breaks_distacne_fine_200 <- c(-1, 200, 400, 600, 20000)
+remote_data_cat <- paperid_year %>%
+  select(Distance, Year, Dscore) %>%
+  filter(Distance > 0) %>%
+  mutate(Distance = cut(Distance, breaks = breaks_distacne_fine_200,
+                        labels = c("0.1-200", "200-400", "400-600", "600-20000")))
+# show the proportion of each distance
+table(remote_data_cat$Distance) / nrow(remote_data_cat)
+# 0.22475503 0.10839041 0.07092556 0.59592900 
+```
+
+## Heatmap of citation rates
+
+```{r heatmap}
+breaks_year <- seq(from = 1960, to = 2020, by = 5)
+missing_data_cat_5year <- paperid_year %>%
+  select(Distance, Year, Dscore) %>%
+  mutate(Distance = cut(Distance, breaks = breaks_distacne_fine, 
+                        labels = c("0", "0.1-1000", "1000-5000", "5000-10000", "10000-15000", "15000-20000")),
+         Year = cut(Year, breaks = breaks_year, 
+                    labels = c("1960-", "1965-", "1970-", "1975-", "1980-", "1985-", "1990-", "1995-", 
+                               "2000-", "2005-", "2010-", "2015-2020"),
+                    include.lowest = T, right = T)) %>%
+  group_by(Distance, Year) %>%
+  summarise(N = n(), n = sum(is.na(Dscore)), .groups = "drop") %>%
+  mutate(citation_rate = 1 - n/N)
+
+# y_d: Year vs Distance
+y_d_missing <- missing_data_cat_5year %>% 
+  ggplot(aes(x = Distance, y = Year, fill = citation_rate,
+             label = round(citation_rate, 2))) +
+  geom_tile() +
+  geom_text(color = "black") +  # Add text labels
+  scale_fill_gradient(low = "white", high = "red") +
+  labs(title = "Heatmap of citation rate", fill = "Citation Rate") +
+  theme_cowplot() +
+  theme(axis.text.x = element_text(angle = 20, hjust = 1))
+y_d_missing
+```
+
+We can clearly see that the red squares over the 2000 to 2015 and the remote collaboration. This indicates that the except the paper published near 2020 (data collection time), the papers with remote collaboration are more likely to be cited since 2000.
+
+## Difference between disciplines
+
+```{r disciplines}
+# we use the same way to classify the discipline as the original paper
+science_and_engineering = c("geology","medicine","mathematics","physics","materials science",
+                            "biology","chemistry","engineering","computer science","geography",
+                            "environmental science")
+social_sciences <- c("political science","business","economics","psychology","sociology")
+art_and_humanity <- c("history","art","philosophy")
+# the definition above can be found in the code of the original paper
+
+df <- bind_rows(
+  data.frame(Discipline = science_and_engineering, Fields = "Science and Engineering"),
+  data.frame(Discipline = social_sciences, Fields = "Social Sciences"),
+  data.frame(Discipline = art_and_humanity, Fields = "Art and Humanity")
+)
+
+paperid_year_fields <- left_join(paperid_year, df, by = "Discipline")
+
+citation_rate_discipline <- paperid_year_fields %>%
+  select(Distance, Year, Dscore, Fields) %>%
+  mutate(Collaboration = ifelse(Distance > 0, "remote", "on-site")) %>%
+  group_by(Collaboration, Year, Fields) %>%
+  summarise(N = n(), n = sum(is.na(Dscore)), .groups = "drop") %>%
+  mutate(citation_rate = 1 - n/N) 
+
+# Year vs citation rate by discipline
+y_c_d <- citation_rate_discipline %>% 
+  filter(Fields != "NA") %>%
+  ggplot(aes(x = Year, y = citation_rate, color = Fields, linetype = Collaboration)) +
+  geom_line() +
+  labs(title = "Citation rate by discipline",
+       y = "Citation Rate", x = "Year",
+       caption = "The original paper classified the disciplines into three categories") +
   theme_cowplot()
-main + transition_time(Year)
+y_c_d
 ```
+
+The line plot shows the citation rate by discipline over time. The three disciplines are science and engineering, social sciences, and art and humanity. The citation rate is higher for social sciences than for science and engineering and art and humanity. We can also see that the art and humanity was benefited most from remote collaboration. This might be because the potential ceiling effect of the science and engineering and the social sciences. Let's see the odds ratio of being cited for each discipline.
+
+```{r odds ratio}
+odds_ratio_discipline <- citation_rate_discipline %>%
+  select(Fields, Year, citation_rate, Collaboration) %>%
+  pivot_wider(names_from = Collaboration, values_from = citation_rate) %>% 
+  filter(Fields != "NA") %>%
+  transmute(Fields, Year, odd_ratio = remote/`on-site`) 
+
+# Year vs odds ratio by discipline
+y_o_d <- odds_ratio_discipline %>% 
+  ggplot(aes(x = Year, y = odd_ratio, color = Fields)) +
+  geom_line() +
+  labs(title = "Odds ratio by discipline",
+       y = "Odds Ratio", x = "Year",
+       caption = "Odds ratio higher than 1 means higher likelihood \n of being citated than on-site collaboration") +
+  theme_cowplot() +
+  geom_abline(intercept = 1, slope = 0, linetype = "dashed") +
+  geom_vline(xintercept = 1990, linetype = "dashed")
+y_o_d
+```
+
+Besides the extreme high odds ratio of art and humanity, the odds ratio of social sciences and science and engineering are steadily higher than 1 since about 1990. This indicates that the remote collaboration is more likely to be cited than the on-site collaboration in recent 30 years.
+
+Although the oscillating odds ratio of art and humanities has a strong appeal for attributing special reasons, considering the high variance of citation rates in this discipline, it is more likely that the result is due to random fluctuation.
+
+## Explosion of papers
+
+As I mentioned before, the the odds ratio is much more stable after 2000. This may be due to the explosion of papers. Let's see the number of papers published each year.
+
+```{r explosion}
+anim_n <- missing_data_cat %>% 
+  transmute(Year, Distance, Yes = N - n, No = n) %>%
+  pivot_longer(cols = 3:4, names_to = "Cited", values_to = "Numbers") %>%
+  ggplot(aes(x = Distance, y = Numbers, fill = Cited)) +
+  geom_bar(stat = "identity",
+           position = "stack") +
+  transition_time(Year) +
+  theme_cowplot() + 
+  ease_aes('linear') +
+  labs(title = "Number of papers in data set in {round(frame_time)}",
+       y = "Number", x = "Distance between collaborators (km)") +
+  theme(axis.text.x = element_text(size = 10)) 
+anim_n
+```
+
+The animation shows that the number of papers has increased dramatically since 2000 and the increase is more significant for on-site collaboration.
+
+# Possible Extensions
+
+As mentioned before, the breakthrough of cited papers cannot be lower than that of non-cited papers (given the same and sufficient existing time). Considering that we have already found that papers with on-site collaboration have a higher proportion of non-cited papers, we can assign a D score of -1 to the non-cited papers and re-analyse the data. Although this approach still somewhat overestimates the disruptiveness of non-cited papers, given the fact that only 1% of data has lower D score than -0.2, it may be sufficient to change the result.
+
+One may argue that the opposite of disruption is "development" rather than "non-disruption", as the original paper mentioned. However, considering the extreme proportion of non-cited papers, even if we assign a D score of 0 to the non-cited papers, the result may still be changed.
+
+# Appendix
+
+## Potential issues of gganimate
+
+If you have been using R and RStudio for a while but haven't used gganimate, you may find it a little tricky to install gganimate. The issue is that you cannot use `install.packages("gganimate")` directly in RStudio because it requires updating some packages that underpin RStudio. You may need to use the terminal to update these packages first. For macOS and Linux, you can use the following command:
+
+``` bash
+r # open R in the terminal
+update.packages(ask = FALSE) # update all packages, without asking
+```
+
+Please refer to [this](https://forum.posit.co/t/issue-with-installed-packages-endless-loop-updating-loaded-packages-one-or-more-of-the-packages-that-will-be-updated-by-installation-are-currently-loaded-restarting-r-prior-to-updating-these-packages-is-strongly-recommended/9458).
+
+You may also find that the gif is not working in the pdf. This is because the pdf does not support gif. You can use the html output to see the gif.
 
 # References
