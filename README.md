@@ -1,7 +1,7 @@
 Deployed as github pages at https://lingyu-meng.github.io/PSY6422_coursework_project/
 
 # Main Result
-![](relative_citation_rate.gif)
+![](plots/relative_citation_rate.gif)
 
 # Conclusion and Significance
 
