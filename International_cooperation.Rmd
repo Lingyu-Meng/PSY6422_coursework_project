@@ -109,7 +109,7 @@ odds_ratio$Distance <- factor(odds_ratio$Distance, levels = custom_order)
 ```{r checks incorporated, include=FALSE}
 odds_ratio %>%
   select(odd_ratio) %>%
-  summarise(
+  reframe(
     range(.),  # check the range of odds ratio
     sum(is.na(.)), # check if there is any NA
     sum(. < 0.8) # check the number of odds ratio lower than 0.8
@@ -138,7 +138,9 @@ anim_missing
 
 ```{r saving gif, include=FALSE}
 # save the gif
-anim_save("relative_citation_rate.gif", animation = anim_missing, ani.width = 800, ani.height = 600)
+saving_path <- "plots/"
+anim_save("relative_citation_rate.gif", animation = anim_missing, ani.width = 800, ani.height = 600,
+          path = saving_path)
 ```
 
 
@@ -184,22 +186,25 @@ The first histogram illustrates the distribution of missing data across the dist
 missing_data <- paperid_year %>%
   filter(is.na(Dscore))
 
-di_hist_miss <- ggplot(missing_data, aes(x = Distance))
-di_hist_miss + geom_histogram()
+di_hist_miss <- ggplot(missing_data, aes(x = Distance)) +
+  geom_histogram()
+di_hist_miss
 
-year_hist_miss <- ggplot(missing_data, aes(x = Year))
-year_hist_miss + geom_histogram()
+year_hist_miss <- ggplot(missing_data, aes(x = Year)) +
+  geom_histogram()
+year_hist_miss
 ```
 
 ## Distribution of distance among remote collaboration
 
 ```{r distance with remote collaboration}
-paperid_year %>% 
+di_stack <- paperid_year %>% 
   filter(Distance > 0) %>%
   mutate(cited = ifelse(is.na(Dscore), "non-cited", "cited")) %>%
   ggplot(aes(x = Distance, fill = cited)) + 
   geom_histogram(position = "stack") + 
   labs(title = "Distribution of distance among remote collaboration (stack)")
+di_stack
 ```
 
 The histogram shows the distribution of distance for all data points with a distance greater than 0.
@@ -342,6 +347,21 @@ anim_n
 
 The animation shows that the number of papers has increased dramatically since 2000 and the increase is more significant for on-site collaboration.
 
+```{r saving plot, include=FALSE}
+# save the gif
+anim_save("number_of_papers.gif", animation = anim_n, ani.width = 800, ani.height = 600,
+          path = saving_path)
+# discipline
+ggsave("discipline_line.png", y_c_d, width = 8, height = 6, dpi = 300, path = saving_path)
+ggsave("discipline_odds_ratio_line.png", y_o_d, width = 8, height = 6, dpi = 300, path = saving_path)
+# heatmap
+ggsave("citation_heatmap.png", y_d_missing, width = 8, height = 6, dpi = 300, path = saving_path)
+# missing data
+ggsave("missing_data_distance.png", di_hist_miss, width = 8, height = 6, dpi = 300, path = saving_path)
+ggsave("missing_data_year.png", year_hist_miss, width = 8, height = 6, dpi = 300, path = saving_path)
+# distance of remote collaboration
+ggsave("distance_of_remote_collaboration_stack.png", di_stack, width = 8, height = 6, dpi = 300, path = saving_path)
+```
 # Possible Extensions
 
 As mentioned before, the breakthrough of cited papers cannot be lower than that of non-cited papers (given the same and sufficient existing time). Considering that we have already found that papers with on-site collaboration have a higher proportion of non-cited papers, we can assign a D score of -1 to the non-cited papers and re-analyse the data. Although this approach still somewhat overestimates the disruptiveness of non-cited papers, given the fact that only 1% of data has lower D score than -0.2, it may be sufficient to change the result.
@@ -361,6 +381,6 @@ update.packages(ask = FALSE) # update all packages, without asking
 
 Please refer to [this](https://forum.posit.co/t/issue-with-installed-packages-endless-loop-updating-loaded-packages-one-or-more-of-the-packages-that-will-be-updated-by-installation-are-currently-loaded-restarting-r-prior-to-updating-these-packages-is-strongly-recommended/9458).
 
-You may also find that the gif is not working in the pdf. This is because the pdf does not support gif. You can use the html output to see the gif.
+You may also find that the gif is not working in the pdf. This is because the pdf does not support gif. You cannot using anim_save to save the gif either when knitting to pdf. You have to comment out the anim_save if you want to knit to pdf.
 
 # References
