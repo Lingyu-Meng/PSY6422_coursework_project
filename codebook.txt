@@ -1,0 +1,7 @@
+Variable name	Formate name	Valid range	Value indicating missing data	Meaning	Notes
+Paperid	integer	285-3045490722	NA	Assigned number for Identification	"There isn't any codebook in the original study. This codebook is created by refering the paper and some inference. In terms of distance, the non-zero minimum is 0.172km. I have no idea why two cities can as close as that."
+Year	integer	2960-2020	NA	The publish year for given paper	
+Discipline	string	NA	NA	"The discipline of given paper, which cover 19 research fields. Provided by Microsoft Academic Graph team, using machine learning model."	
+Teamsize	integer	2-2846	NA	The number of authors for given paper	
+Distance	float	0-19870.83	NA	The geographic distance between co-authors using the geographic coordinates of cities	
+Dscore	float	-1 to 1	NaN	"The divergence between two categories of subsequent papers: the proportion of papers solely referencing the focal paper without including its references, and the proportion of papers that reference both the focal paper and its associated references."	
