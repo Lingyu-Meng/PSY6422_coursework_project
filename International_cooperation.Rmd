@@ -1,11 +1,12 @@
 ---
 title: "Remote collaboration fuses more citable ideas (Now)"
 author: "Lingyu Meng"
-date: "2024-04-19"
+date: "`r Sys.Date()`"
 output:
   html_document: default
   pdf_document: default
 bibliography: references.bib
+csl: apa.csl
 ---
 
 As the world becomes more connected, remote collaboration is becoming more common. However, the recent study rises a question: does remote collaboration really good for the scientific community? The paper published in Nature may provide some disappointing answer. But if we look at the data, we may find some interesting things.
@@ -44,7 +45,9 @@ Thanks to the open data policy, we can analyse the missing data by ourselves.
 
 For clarity, I will using cited or non-cited to express the data with or without D score.
 
-The raw date used in this project can be found in [here](https://www.dropbox.com/scl/fi/16zx8y4he5l20iaahf3m8/RemoteTeam_DataForMainFigrues.zip?rlkey=c59tog9qecn61fvuzo9o0aczu&e=2&dl=0). Or using the provided link in the paper which is <https://lyl010.github.io>. You need click "Code & Data" and then click "Data" to navigate the data page. Please download the data, which is a file named "raw data.zip", and unzip it in the same directory as this file.
+The raw data used in this project can be found in [here](https://www.dropbox.com/scl/fi/16zx8y4he5l20iaahf3m8/RemoteTeam_DataForMainFigrues.zip?rlkey=c59tog9qecn61fvuzo9o0aczu&e=2&dl=0). Or using the provided link in the paper which is <https://lyl010.github.io>. You need click "Code & Data" and then click "Data" to navigate the data page. Please download the data, which is a file named "raw data.zip", and unzip it in the same directory as this file.
+
+<details>
 
 ```{r setup, message = FALSE}
 # List of required packages
@@ -76,7 +79,11 @@ paperid_year <- read_delim("raw data/Paperid_Year_Discipline_Teamsize_Distance_D
                            delim = "\t")
 ```
 
+</details>
+
 We will start by breaking down the data by distance. The distance between collaborators ranges from 0 to about 20000 km. The data is divided into six categories: 0 km, 0.1-1000 km, 1000-5000 km, 5000-10000 km, 10000-15000 km, and 15000-20000 km. The cited rate is calculated for each distance category and year. It is defined as the number of missing D scores divided by the total number of papers. The cited rate is then used to calculate the odds ratio of being cited for each distance category relative to the 0 km category. An odds ratio greater than 1 indicates a higher likelihood of being cited than on-site collaboration.
+
+<details>
 
 ```{r data wrangling}
 # calculate the citation rate
@@ -126,14 +133,14 @@ anim_missing <- odds_ratio %>%
   ease_aes('linear') +
   geom_abline(intercept = 1, slope = 0, linetype = "dashed") +
   labs(title = "Relative citation rate of academic papers published in {round(frame_time)}",
-       y = "Odds Ratio", x = "Distance between collaborators (km)",
+       y = "Relative probability of being cited (Odds ratio)",
+       x = "Distance between collaborators (km)",
        caption = "Odds ratio higher than 1 means higher likelihood of being citated than on-site collaboration",
        fill = "1990 (The first online-only journal established)") +
   labs(subtitle = "Remote versus on-site collaboration by distance between collaborators") +
   theme(axis.text.x = element_text(size = 10),
         legend.position = c(0.05, 0.9)) +
   coord_cartesian(ylim = c(0.8, 1.3)) # the y axis in original paper is 0.8-1.1
-anim_missing
 ```
 
 ```{r saving gif, include=FALSE}
@@ -143,6 +150,9 @@ anim_save("relative_citation_rate.gif", animation = anim_missing, ani.width = 80
           path = saving_path)
 ```
 
+</details>
+
+![](plots/relative_citation_rate.gif)
 
 The animation depicts two tendencies. First, the odds ratio of being cited is generally higher for remote collaboration than for on-site collaboration after 1990. Second, the variance in the odds ratio is higher for longer distances.
 
@@ -168,6 +178,8 @@ The original paper acknowledges that citations increase as the distance between 
 
 This project shared a lots of limitations with the original paper. Considering they didn't share process free data, we cannot include as more potential factors as the original paper could. However, by considering the missing data, we provide a more comprehensive view of the data.
 
+Additionally, I'd like to highlight that our dataset consists of 20 million data points. The extensive size of the dataset raises an important concern known as Lindley's paradox. In brief, with a large sample size, there's an increased likelihood that the significance of results may support the null hypothesis. For further details on this concept, I recommend reviewing [this material](https://lakens.github.io/statistical_inferences/01-pvalue.html#sec-lindley). Given that the original paper used an OLS regression, it's crucial to interpret the results with caution.
+
 # Conclusion and Significance
 
 1.  By looking at the ignored data, we found an opposite result to the original paper using the same data set. This finding indicates the importance of describing the analysis process in detail and sharing the data.
@@ -182,20 +194,28 @@ This project shared a lots of limitations with the original paper. Considering t
 
 The first histogram illustrates the distribution of missing data across the distance between collaborators. It shows that missing data is more frequent when the distance between collaborators is less than 1000 km. The second histogram depicts the distribution of missing data over time, indicating a higher number of occurrences in recent years. Both trends are attributed to the amount of data in each corresponding category.
 
+<details>
+
 ```{r missing data plot}
 missing_data <- paperid_year %>%
   filter(is.na(Dscore))
 
 di_hist_miss <- ggplot(missing_data, aes(x = Distance)) +
   geom_histogram()
-di_hist_miss
 
 year_hist_miss <- ggplot(missing_data, aes(x = Year)) +
   geom_histogram()
-year_hist_miss
 ```
 
+</details>
+
+![](plots/missing_data_distance.png)
+
+![](plots/missing_data_year.png)
+
 ## Distribution of distance among remote collaboration
+
+<details>
 
 ```{r distance with remote collaboration}
 di_stack <- paperid_year %>% 
@@ -204,12 +224,17 @@ di_stack <- paperid_year %>%
   ggplot(aes(x = Distance, fill = cited)) + 
   geom_histogram(position = "stack") + 
   labs(title = "Distribution of distance among remote collaboration (stack)")
-di_stack
 ```
+
+</details>
+
+![](plots/distance_of_remote_collaboration_stack.png)
 
 The histogram shows the distribution of distance for all data points with a distance greater than 0.
 
 As the original paper mentioned, "among remote teams, 22% of the sample have a collaboration distance of 0–200 km, and 11%, 7% and 60% of the papers have a collaboration distance of 200–400 km, 400–600 km and more than 600 km, respectively."
+
+<details>
 
 ```{r data check}
 breaks_distacne_fine_200 <- c(-1, 200, 400, 600, 20000)
@@ -223,7 +248,11 @@ table(remote_data_cat$Distance) / nrow(remote_data_cat)
 # 0.22475503 0.10839041 0.07092556 0.59592900 
 ```
 
+</details>
+
 ## Heatmap of citation rates
+
+<details>
 
 ```{r heatmap}
 breaks_year <- seq(from = 1960, to = 2020, by = 5)
@@ -249,12 +278,17 @@ y_d_missing <- missing_data_cat_5year %>%
   labs(title = "Heatmap of citation rate", fill = "Citation Rate") +
   theme_cowplot() +
   theme(axis.text.x = element_text(angle = 20, hjust = 1))
-y_d_missing
 ```
+
+</details>
+
+![](plots/citation_heatmap.png)
 
 We can clearly see that the red squares over the 2000 to 2015 and the remote collaboration. This indicates that the except the paper published near 2020 (data collection time), the papers with remote collaboration are more likely to be cited since 2000.
 
 ## Difference between disciplines
+
+<details>
 
 ```{r disciplines}
 # we use the same way to classify the discipline as the original paper
@@ -296,10 +330,15 @@ y_c_d <- citation_rate_discipline %>%
        y = "Citation Rate", x = "Year",
        caption = "The original paper classified the disciplines into three categories") +
   theme_cowplot()
-y_c_d
 ```
 
+</details>
+
+![](plots/discipline_line.png)
+
 The line plot shows the citation rate by discipline over time. The three disciplines are science and engineering, social sciences, and art and humanity. The citation rate is higher for social sciences than for science and engineering and art and humanity. We can also see that the art and humanity was benefited most from remote collaboration. This might be because the potential ceiling effect of the science and engineering and the social sciences. Let's see the odds ratio of being cited for each discipline.
+
+<details>
 
 ```{r odds ratio}
 odds_ratio_discipline <- citation_rate_discipline %>%
@@ -318,8 +357,11 @@ y_o_d <- odds_ratio_discipline %>%
   theme_cowplot() +
   geom_abline(intercept = 1, slope = 0, linetype = "dashed") +
   geom_vline(xintercept = 1990, linetype = "dashed")
-y_o_d
 ```
+
+</details>
+
+![](plots/discipline_odds_ratio_line.png)
 
 Besides the extreme high odds ratio of art and humanity, the odds ratio of social sciences and science and engineering are steadily higher than 1 since about 1990. This indicates that the remote collaboration is more likely to be cited than the on-site collaboration in recent 30 years.
 
@@ -328,6 +370,8 @@ Although the oscillating odds ratio of art and humanities has a strong appeal fo
 ## Explosion of papers
 
 As I mentioned before, the the odds ratio is much more stable after 2000. This may be due to the explosion of papers. Let's see the number of papers published each year.
+
+<details>
 
 ```{r explosion}
 anim_n <- missing_data_cat %>% 
@@ -342,8 +386,11 @@ anim_n <- missing_data_cat %>%
   labs(title = "Number of papers in data set in {round(frame_time)}",
        y = "Number", x = "Distance between collaborators (km)") +
   theme(axis.text.x = element_text(size = 10)) 
-anim_n
 ```
+
+</details>
+
+![](plots/number_of_papers.gif)
 
 The animation shows that the number of papers has increased dramatically since 2000 and the increase is more significant for on-site collaboration.
 
@@ -362,6 +409,7 @@ ggsave("missing_data_year.png", year_hist_miss, width = 8, height = 6, dpi = 300
 # distance of remote collaboration
 ggsave("distance_of_remote_collaboration_stack.png", di_stack, width = 8, height = 6, dpi = 300, path = saving_path)
 ```
+
 # Possible Extensions
 
 As mentioned before, the breakthrough of cited papers cannot be lower than that of non-cited papers (given the same and sufficient existing time). Considering that we have already found that papers with on-site collaboration have a higher proportion of non-cited papers, we can assign a D score of -1 to the non-cited papers and re-analyse the data. Although this approach still somewhat overestimates the disruptiveness of non-cited papers, given the fact that only 1% of data has lower D score than -0.2, it may be sufficient to change the result.
@@ -382,5 +430,9 @@ update.packages(ask = FALSE) # update all packages, without asking
 Please refer to [this](https://forum.posit.co/t/issue-with-installed-packages-endless-loop-updating-loaded-packages-one-or-more-of-the-packages-that-will-be-updated-by-installation-are-currently-loaded-restarting-r-prior-to-updating-these-packages-is-strongly-recommended/9458).
 
 You may also find that the gif is not working in the pdf. This is because the pdf does not support gif. You cannot using anim_save to save the gif either when knitting to pdf. You have to comment out the anim_save if you want to knit to pdf.
+
+## Repository
+
+Code and figures can be found [here](https://github.com/Lingyu-Meng/PSY6422_coursework_project.git).
 
 # References
