@@ -33,7 +33,7 @@ Hawley concluded that the paper is interesting but needs more work to be convinc
 
 # Why the data is missing?
 
-Considering that the missing data accounts for as much as 28% of the total dataset, it is essential to discuss why this data is missing and whether its absence affects the results. The original paper did not mention the missing data. However, as Hawley pointed out, the absence of D scores is likely due to the papers never being cited. The definition of the D score is the proportion of papers solely referencing the focal paper without including its references, subtracted from the proportion of papers that reference both the focal paper and its associated references. If the focal paper is not cited, the former proportion is 0, and the D score is undefined. That is the most likely reason for as much as 28% of the data being missing.
+Given that the missing data accounts for up to 28% of the total dataset, it is essential to discuss why this data is missing and whether its absence affects the results. The original paper did not address the issue of missing data. However, as Hawley pointed out, the absence of D scores is likely due to the papers never being cited. The D score is defined as the proportion of papers solely referencing the focal paper without including its references, subtracted from the proportion of papers that reference both the focal paper and its associated references. If the focal paper is not cited, the denominator is 0, rendering the D score undefined. This likely explains why up to 28% of the data is missing.
 
 One might argue that non-cited papers could be treated as having a D score of 0. However, given that even the least disruptive papers, which could potentially have a negative D score, are cited at least once, it is not appropriate to consider non-cited papers as more disruptive than non-disruptive papers. Therefore, treating non-cited papers as missing data is the most appropriate approach.
 
@@ -178,7 +178,7 @@ The original paper acknowledges that citations increase as the distance between 
 
 This project shared a lots of limitations with the original paper. Considering they didn't share process free data, we cannot include as more potential factors as the original paper could. However, by considering the missing data, we provide a more comprehensive view of the data.
 
-Additionally, I'd like to highlight that our dataset consists of 20 million data points. The extensive size of the dataset raises an important concern known as Lindley's paradox. In brief, with a large sample size, there's an increased likelihood that the significance of results may support the null hypothesis. For further details on this concept, I recommend reviewing [this material](https://lakens.github.io/statistical_inferences/01-pvalue.html#sec-lindley). Given that the original paper used an OLS regression, it's crucial to interpret the results with caution.
+Additionally, I'd like to highlight that this dataset consists of 20 million data points. The extensive size of the dataset raises an important concern known as Lindley's paradox. In brief, with a large sample size, there's an increased likelihood that the significance of results may support the null hypothesis. For further details on this concept, I recommend reviewing [this material](https://lakens.github.io/statistical_inferences/01-pvalue.html#sec-lindley). Given that the original paper used an OLS regression, it's crucial to interpret the results with caution.
 
 # Conclusion and Significance
 
@@ -186,7 +186,7 @@ Additionally, I'd like to highlight that our dataset consists of 20 million data
 
 2.  Instead of supposing selection bias, we confirmed that the missing data is related to the distance between collaborators. This finding indicates that it is true that on-site collaboration yields more uncitable papers, and this ignored result may affect the result of the original paper.
 
-3.  Don't be afraid of remote collaboration. The data shows strong evidence that the remote collaboration is good for the scientific community, as the original paper shows that it is bad, and we did find a time effect for getting a better result.
+3.  Don't be afraid of remote collaboration. The data supports that remote collaboration is beneficial for the scientific community, in contrast to the original paper's conclusion. Our findings provide equally compelling evidence from the same dataset, supporting the positive impact of remote collaboration. Additionally, we observed a time effect, indicating a growing benefit of remote collaboration over time.
 
 # Extended analysis
 
