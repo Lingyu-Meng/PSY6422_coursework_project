@@ -85,6 +85,11 @@ We will start by breaking down the data by distance. The distance between collab
 
 <details>
 
+```{r raw data check, include=FALSE}
+#show the first few rows of the raw data
+head(paperid_year)
+```
+
 ```{r data wrangling}
 # calculate the citation rate
 breaks_distacne_fine <- c(-1, 0.1, 1000, 5000, 10000, 15000, 20000)
@@ -430,6 +435,14 @@ update.packages(ask = FALSE) # update all packages, without asking
 Please refer to [this](https://forum.posit.co/t/issue-with-installed-packages-endless-loop-updating-loaded-packages-one-or-more-of-the-packages-that-will-be-updated-by-installation-are-currently-loaded-restarting-r-prior-to-updating-these-packages-is-strongly-recommended/9458).
 
 You may also find that the gif is not working in the pdf. This is because the pdf does not support gif. You cannot using anim_save to save the gif either when knitting to pdf. You have to comment out the anim_save if you want to knit to pdf.
+
+## Data Origins
+
+The data used in this project is from the original paper. According to the original paper,
+
+> The name-disambiguated authors and their respective institutions with latitude and longitude values were obtained from the archived version of Microsoft Academic Graph and were verified in two ways: by two human coders who manually checked a random sample of the data, and by comparing our sample against self-reported records in ORCID (Open Researcher and Contributor ID). 
+
+> Microsoft Academic Graph (MAG) provides name-disambiguated authors (22,566,650) and institutions (22,679) of papers, utilizing verified machine learning models38. The latitude and longitude values of these institutions are also provided, such as the University of Pittsburgh (latitude 40.4445648, longitude −79.95328) or Carnegie Mellon University” (latitude 40.44332, longitude −79.94358).
 
 ## Repository
 
